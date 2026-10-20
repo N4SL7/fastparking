@@ -189,6 +189,54 @@ describe('CP-10 llegada confirmada (RF-16)', () => {
   });
 });
 
+describe('CP-11 pago simulado e historial (RF-11, RF-17)', () => {
+  it('liquida por minuto desde la entrada, registra un solo pago y lo muestra en el historial', async () => {
+    const sesion = await crearSesion();
+    await pool.query(`UPDATE sesion_visita SET creada_en = now() - interval '42 minutes 10 seconds' WHERE id_sesion = $1`, [sesion]);
+    const cotizacion = await request(app).get('/api/payments/quote').set('x-session-id', sesion);
+    expect(cotizacion.status).toBe(200);
+    expect(cotizacion.body).toMatchObject({ minutos: 43, tarifaMinuto: 130, valor: 43 * 130, pago: null, tarifaIlustrativa: true });
+
+    const pago = await request(app).post('/api/payments').set('x-session-id', sesion).send({ metodo: 'NEQUI' });
+    expect(pago.status).toBe(201);
+    expect(pago.body).toMatchObject({ estado: 'APROBADO_SIMULADO', metodo: 'NEQUI', valor: 43 * 130 });
+    expect(pago.body.aviso).toContain('simulado');
+
+    const otra = await request(app).post('/api/payments').set('x-session-id', sesion).send({ metodo: 'PSE' });
+    expect(otra.status).toBe(409);
+    const hist = await request(app).get('/api/payments').set('x-session-id', sesion);
+    expect(hist.body.pagos).toHaveLength(1);
+    const despues = await request(app).get('/api/payments/quote').set('x-session-id', sesion);
+    expect(despues.body.pago.codigo).toBe(pago.body.codigo);
+  });
+
+  it('rechaza métodos de pago no soportados', async () => {
+    const sesion = await crearSesion();
+    const res = await request(app).post('/api/payments').set('x-session-id', sesion).send({ metodo: 'EFECTIVO' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('Puesto elegido en el mapa (RF-10)', () => {
+  it('la retención guarda el puesto y la llegada lo usa para la ubicación', async () => {
+    const sesion = await crearSesion();
+    const ret = await request(app).post('/api/retentions').set('x-session-id', sesion).send({ idZona: 3, puesto: 6 });
+    expect(ret.body.puesto).toBe(6);
+    await request(app).post(`/api/retentions/${ret.body.idRetencion}/arrive`).set('x-session-id', sesion).send({});
+    const u = await request(app).get('/api/vehicle-location').set('x-session-id', sesion);
+    expect(u.body.ubicacion).toMatchObject({ puesto: 6, zonaCodigo: 'S1-C' });
+    const s2 = await request(app).get('/api/sessions/current').set('x-session-id', sesion);
+    expect(typeof s2.body.creadaEn).toBe('string');
+  });
+
+  it('rechaza un puesto mayor que la capacidad de la zona', async () => {
+    const sesion = await crearSesion();
+    const res = await request(app).post('/api/retentions').set('x-session-id', sesion).send({ idZona: 3, puesto: 40 });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('PUESTO_INVALIDO');
+  });
+});
+
 describe('CP-08 guardar y recuperar ubicación (RF-09)', () => {
   it('guarda piso, zona y referencia, y los recupera en la misma sesión', async () => {
     const sesion = await crearSesion();

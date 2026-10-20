@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import { pool } from '../../db/pool.js';
 import { AppError, asyncHandler } from '../../shared/errors.js';
-import { crearOReanudarSesion, validarSesion } from './sessions.service.js';
+import { crearOReanudarSesion, obtenerSesion, validarSesion } from './sessions.service.js';
 
 export const sessionsRouter = Router();
 
@@ -32,3 +32,12 @@ export const requerirSesion: RequestHandler = asyncHandler(async (req, res, next
   res.locals.idSesion = parsed.data;
   next();
 });
+
+/** GET /api/sessions/current — hora de entrada de la sesión (RF-09, RF-11) */
+sessionsRouter.get(
+  '/current',
+  requerirSesion,
+  asyncHandler(async (_req, res) => {
+    res.json(await obtenerSesion(pool, res.locals.idSesion));
+  }),
+);

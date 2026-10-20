@@ -1,6 +1,6 @@
 -- Datos de prueba ILUSTRATIVOS. No son datos oficiales del Centro Comercial Parque La Colina.
 -- Capacidades pequeñas para poder demostrar conflictos con pocos eventos.
-TRUNCATE ubicacion_vehiculo, historial_retencion, evento_ocupacion, retencion, sesion_visita, zona, piso RESTART IDENTITY CASCADE;
+TRUNCATE pago, ubicacion_vehiculo, historial_retencion, evento_ocupacion, retencion, sesion_visita, zona, piso RESTART IDENTITY CASCADE;
 
 INSERT INTO piso (id_piso, codigo, nombre, orden) VALUES
   (1, 'S1', 'Sótano 1', 1),

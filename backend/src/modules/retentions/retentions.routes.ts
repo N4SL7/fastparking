@@ -13,15 +13,15 @@ import {
 export const retentionsRouter = Router();
 retentionsRouter.use(requerirSesion);
 
-const SolicitarSchema = z.object({ idZona: z.number().int().positive() });
+const SolicitarSchema = z.object({ idZona: z.number().int().positive(), puesto: z.number().int().min(1).max(99).optional() });
 const IdSchema = z.string().uuid();
 
 /** POST /api/retentions — RF-04 */
 retentionsRouter.post(
   '/',
   asyncHandler(async (req, res) => {
-    const { idZona } = SolicitarSchema.parse(req.body);
-    res.status(201).json(await solicitarRetencion(res.locals.idSesion, idZona));
+    const { idZona, puesto } = SolicitarSchema.parse(req.body);
+    res.status(201).json(await solicitarRetencion(res.locals.idSesion, idZona, puesto));
   }),
 );
 

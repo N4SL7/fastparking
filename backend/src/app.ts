@@ -2,6 +2,7 @@ import express from 'express';
 import { pool } from './db/pool.js';
 import { eventsRouter } from './modules/events/events.routes.js';
 import { locationsRouter } from './modules/locations/locations.routes.js';
+import { paymentsRouter } from './modules/payments/payments.routes.js';
 import { retentionsRouter } from './modules/retentions/retentions.routes.js';
 import { sessionsRouter } from './modules/sessions/sessions.routes.js';
 import { zonesRouter } from './modules/zones/zones.routes.js';
@@ -34,6 +35,7 @@ export function crearApp() {
   app.use('/api/zones', zonesRouter);
   app.use('/api/retentions', retentionsRouter);
   app.use('/api/vehicle-location', locationsRouter);
+  app.use('/api/payments', paymentsRouter);
   app.use('/api', eventsRouter);
 
   app.use((_req, _res, next) => next(new AppError(404, 'RUTA_NO_ENCONTRADA', 'La ruta solicitada no existe.')));

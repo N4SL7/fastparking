@@ -25,6 +25,10 @@ export const config = {
   simulatorApiKey: process.env.SIMULATOR_API_KEY ?? '',
   /** RN-02 / D-04: vigencia de una retención temporal simulada (flujo de 7 minutos). */
   retentionMinutes: entero('RETENTION_MINUTES', 7),
+  /** RF-11: tarifa ILUSTRATIVA por minuto en pesos colombianos (no es la tarifa oficial del centro comercial). */
+  tarifaPorMinuto: entero('TARIFA_POR_MINUTO', 130),
+  /** RF-11: minutos para salir después de pagar. */
+  minutosParaSalir: entero('MINUTOS_PARA_SALIR', 15),
   /** D-02: duración de una sesión anónima creada desde el QR. */
   sessionHours: entero('SESSION_HOURS', 12),
   /** RF-05: cada cuánto se ejecuta el planificador de expiraciones. */

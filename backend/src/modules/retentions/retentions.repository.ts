@@ -15,6 +15,7 @@ export interface RetencionVista {
   cerradaEn: Date | null;
   motivoCierre: string | null;
   idRetencionOrigen: string | null;
+  puesto: number | null;
   aviso: string;
 }
 
@@ -31,11 +32,12 @@ interface FilaRetencion {
   cerrada_en: Date | null;
   motivo_cierre: string | null;
   id_retencion_origen: string | null;
+  puesto: number | null;
 }
 
 const SQL_RETENCION = `
   SELECT r.id_retencion, r.id_sesion, r.estado, r.id_zona, z.codigo AS zona_codigo, z.nombre AS zona_nombre,
-         p.nombre AS piso_nombre, r.creada_en, r.vence_en, r.cerrada_en, r.motivo_cierre, r.id_retencion_origen
+         p.nombre AS piso_nombre, r.creada_en, r.vence_en, r.cerrada_en, r.motivo_cierre, r.id_retencion_origen, r.puesto
   FROM retencion r
   JOIN zona z ON z.id_zona = r.id_zona
   JOIN piso p ON p.id_piso = z.id_piso`;
@@ -57,6 +59,7 @@ function aVista(f: FilaRetencion): RetencionVista {
     cerradaEn: f.cerrada_en,
     motivoCierre: f.motivo_cierre,
     idRetencionOrigen: f.id_retencion_origen,
+    puesto: f.puesto,
     aviso: AVISO_RETENCION,
   };
 }
@@ -88,13 +91,13 @@ export async function bloquearVigentesDeZona(db: Db, idZona: number): Promise<Re
 
 export async function insertar(
   db: Db,
-  datos: { idSesion: string; idZona: number; minutos: number; idRetencionOrigen?: string },
+  datos: { idSesion: string; idZona: number; minutos: number; idRetencionOrigen?: string; puesto?: number },
 ): Promise<string> {
   const id = randomUUID();
   await db.query(
-    `INSERT INTO retencion (id_retencion, id_sesion, id_zona, id_retencion_origen, estado, vence_en)
-     VALUES ($1, $2, $3, $4, 'VIGENTE', now() + make_interval(mins => $5::int))`,
-    [id, datos.idSesion, datos.idZona, datos.idRetencionOrigen ?? null, datos.minutos],
+    `INSERT INTO retencion (id_retencion, id_sesion, id_zona, id_retencion_origen, puesto, estado, vence_en)
+     VALUES ($1, $2, $3, $4, $5, 'VIGENTE', now() + make_interval(mins => $6::int))`,
+    [id, datos.idSesion, datos.idZona, datos.idRetencionOrigen ?? null, datos.puesto ?? null, datos.minutos],
   );
   return id;
 }

@@ -24,7 +24,7 @@ async function sugerirAlternativas(idZonaOrigen: number, limite = 3) {
  * Toda la validación ocurre en una transacción con la zona bloqueada (RN-07, RNF-03):
  * dos solicitudes simultáneas por el último cupo nunca quedan ambas VIGENTES.
  */
-export async function solicitarRetencion(idSesion: string, idZona: number): Promise<RetencionVista> {
+export async function solicitarRetencion(idSesion: string, idZona: number, puesto?: number): Promise<RetencionVista> {
   let idCreada: string;
   try {
     idCreada = await withTransaction(async (tx) => {
@@ -41,8 +41,11 @@ export async function solicitarRetencion(idSesion: string, idZona: number): Prom
       if (zona.cupoLogico <= 0) {
         throw new AppError(409, 'ZONA_SIN_CUPO', `La zona ${zona.codigo} ya no tiene cupo disponible.`);
       }
+      if (puesto !== undefined && puesto > zona.capacidadTotal) {
+        throw new AppError(400, 'PUESTO_INVALIDO', `La zona ${zona.codigo} solo tiene ${zona.capacidadTotal} puestos.`);
+      }
 
-      const id = await repo.insertar(tx, { idSesion, idZona, minutos: config.retentionMinutes });
+      const id = await repo.insertar(tx, { idSesion, idZona, minutos: config.retentionMinutes, puesto });
       await repo.registrarHistorial(tx, { idRetencion: id, estadoAnterior: null, estadoNuevo: 'VIGENTE', motivo: 'SOLICITUD_CONDUCTOR' });
       await marcarZonaActualizada(tx, idZona);
       return id;
@@ -134,7 +137,14 @@ export async function confirmarLlegada(idSesion: string, idRetencion: string, pu
       motivo: 'LLEGADA_CONFIRMADA',
       idEvento,
     });
-    await guardarUbicacion(tx, idSesion, previa.idZona, puesto ? `Puesto ${String(puesto).padStart(2, '0')}` : undefined, puesto);
+    const puestoFinal = puesto ?? previa.puesto ?? undefined;
+    await guardarUbicacion(
+      tx,
+      idSesion,
+      previa.idZona,
+      puestoFinal ? `Puesto ${String(puestoFinal).padStart(2, '0')}` : undefined,
+      puestoFinal,
+    );
     return { ok: true as const };
   });
 

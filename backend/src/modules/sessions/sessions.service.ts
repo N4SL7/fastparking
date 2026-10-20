@@ -41,3 +41,13 @@ export async function validarSesion(db: Db, idSesion: string): Promise<void> {
   if (rows.length === 0) throw new AppError(401, 'SESION_INVALIDA', 'La sesión no existe. Vuelve a escanear el QR.');
   if (!rows[0].vigente) throw new AppError(401, 'SESION_EXPIRADA', 'Tu sesión expiró. Vuelve a escanear el QR.');
 }
+
+/** Datos de la sesión vigente: la hora de creación es la hora de entrada al parqueadero (RF-09, RF-11). */
+export async function obtenerSesion(db: Db, idSesion: string): Promise<SesionVista> {
+  const { rows } = await db.query<{ id_sesion: string; creada_en: Date; expira_en: Date }>(
+    'SELECT id_sesion, creada_en, expira_en FROM sesion_visita WHERE id_sesion = $1',
+    [idSesion],
+  );
+  if (rows.length === 0) throw new AppError(401, 'SESION_INVALIDA', 'La sesión no existe. Vuelve a escanear el QR.');
+  return { idSesion: rows[0].id_sesion, creadaEn: rows[0].creada_en, expiraEn: rows[0].expira_en };
+}

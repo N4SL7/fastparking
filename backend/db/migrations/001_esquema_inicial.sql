@@ -40,6 +40,7 @@ CREATE TABLE retencion (
   id_sesion            UUID         NOT NULL REFERENCES sesion_visita(id_sesion),
   id_zona              SMALLINT     NOT NULL REFERENCES zona(id_zona),
   id_retencion_origen  UUID         REFERENCES retencion(id_retencion), -- se llena cuando nace de una reasignación
+  puesto               SMALLINT     CHECK (puesto > 0),                  -- puesto ilustrativo elegido en el mapa (RF-10)
   estado               VARCHAR(12)  NOT NULL,
   creada_en            TIMESTAMPTZ  NOT NULL DEFAULT now(),
   vence_en             TIMESTAMPTZ  NOT NULL,
@@ -85,4 +86,20 @@ CREATE TABLE ubicacion_vehiculo (
   puesto         SMALLINT     CHECK (puesto > 0),   -- número de puesto ilustrativo dentro de la zona
   referencia     VARCHAR(80),
   registrada_en  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+-- PAGO: pago SIMULADO del parqueadero desde la app (RF-11, RF-17). No procesa dinero ni guarda datos financieros (RN-08).
+CREATE TABLE pago (
+  id_pago        UUID         PRIMARY KEY,
+  id_sesion      UUID         NOT NULL UNIQUE REFERENCES sesion_visita(id_sesion), -- un pago por tiquete
+  codigo         VARCHAR(12)  NOT NULL UNIQUE,                                    -- código del comprobante y del QR de salida
+  minutos        INTEGER      NOT NULL CHECK (minutos > 0),
+  tarifa_minuto  INTEGER      NOT NULL CHECK (tarifa_minuto >= 0),                -- tarifa ilustrativa vigente al pagar (COP)
+  valor          INTEGER      NOT NULL CHECK (valor >= 0),
+  metodo         VARCHAR(10)  NOT NULL CHECK (metodo IN ('TARJETA','NEQUI','PSE')),
+  estado         VARCHAR(20)  NOT NULL DEFAULT 'APROBADO_SIMULADO' CHECK (estado IN ('APROBADO_SIMULADO')),
+  pagado_en      TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  salida_hasta   TIMESTAMPTZ  NOT NULL,
+  CONSTRAINT ck_pago_valor CHECK (valor = minutos * tarifa_minuto),
+  CONSTRAINT ck_pago_salida CHECK (salida_hasta > pagado_en)
 );
