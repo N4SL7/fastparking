@@ -44,6 +44,8 @@ flowchart LR
 
 Módulos del backend (`backend/src/modules`): `sessions`, `zones`, `retentions` (incluye el motor de reasignación y el planificador de expiraciones), `events` (adaptador de eventos) y `locations`.
 
+Documento técnico completo: [`docs/documento-tecnico.pdf`](docs/documento-tecnico.pdf) (y su versión editable `.docx`).
+
 Más detalle: [`docs/arquitectura.md`](docs/arquitectura.md), modelo de datos en [`docs/mer.md`](docs/mer.md) y trazabilidad en [`docs/trazabilidad.md`](docs/trazabilidad.md).
 
 ## Estructura

@@ -2,7 +2,7 @@
 
 ## 1. Problema
 
-Entre el ingreso al parqueadero del Centro Comercial Parque La Colina y el momento de estacionar, el conductor no tiene información comprensible sobre qué zonas tienen cupo. La ocupación cambia mientras busca, y al salir del centro comercial no siempre recuerda dónde dejó el vehículo. FastParking estudia si una interfaz por zonas, una retención lógica temporal con reasignación automática y un plano de referencia ayudan a organizar ese proceso. La posible reducción de tiempos de búsqueda es un **resultado por evaluar**, no un beneficio ya demostrado.
+Entre el ingreso al parqueadero del Centro Comercial Parque La Colina y el momento de estacionar, el conductor no tiene información comprensible sobre qué zonas tienen cupo. La ocupación cambia mientras busca, al salir del centro comercial no siempre recuerda dónde dejó el vehículo y, además, debe hacer fila en las cajas para pagar el parqueadero. FastParking estudia si una interfaz por zonas, una retención lógica temporal con reasignación automática y un plano de referencia ayudan a organizar ese proceso. La posible reducción de tiempos de búsqueda es un **resultado por evaluar**, no un beneficio ya demostrado.
 
 ## 2. Objetivo general
 
@@ -33,12 +33,12 @@ Diseñar y desarrollar una aplicación web progresiva (FastParking) que permita 
 | RF-09 | Mi vehículo | Se guarda dónde quedó el vehículo (automático al confirmar la llegada) y la sección *Mi vehículo* muestra solo la hora de entrada y el lugar (piso, zona y puesto) | Se ven hora de entrada y lugar; la ubicación se recupera en la misma sesión | CP-08, CP-10 |
 | RF-10 | Mapa del sótano, elección de puesto y ruta simulada | Plano ilustrativo en perspectiva 3D de cada sótano (piso gris, zonas con borde de marca, demarcación reflectiva, vehículos según la ocupación). El conductor toca un puesto libre y lo reserva; luego una flecha recorre la ruta (con instrucciones de giro y distancia) desde la rampa hasta el puesto | El plano indica que es referencia y no localización en vivo; la flecha recorre la ruta y anuncia la llegada al puesto | Prueba de interfaz (Playwright / manual) |
 | RF-11 | Pagar desde la app (simulado) | La sección *Billetera* liquida el tiempo desde la entrada con la tarifa ilustrativa, permite elegir método (Tarjeta, Nequi, PSE en modo demostración) y entrega comprobante con QR de salida | Valor = minutos × tarifa; un solo pago por tiquete; comprobante con código y hora límite de salida; no se piden ni guardan datos financieros | CP-11 |
-| RF-17 | Historial de pagos | La *Billetera* muestra los pagos realizados | El pago aparece con fecha, valor, tiempo y método | CP-11 |
 | RF-12 | Registrar eventos | Se registran eventos de ocupación y cada cambio de estado de una retención | `evento_ocupacion` e `historial_retencion` guardan id, fecha, tipo, fuente, motivo y resultado | CP-05 |
 | RF-13 | Frescura de datos | La interfaz muestra la hora de actualización y advierte si los datos están desactualizados | Se ve "Actualizado a las hh:mm:ss"; tras 45 s sin datos aparece la advertencia | CP-09 / interfaz |
 | RF-14 | Manejo de errores | Errores comprensibles con formato uniforme | `{error:{code,message}}`; sin conexión no se presentan datos antiguos como actuales | CP-09 |
-| RF-16 | Confirmar llegada | Al terminar la ruta, el conductor confirma que estacionó | La retención pasa a UTILIZADA, la zona suma un vehículo (evento con fuente CONDUCTOR), el cupo lógico se mantiene y se guarda la ubicación con el puesto | CP-10 |
 | RF-15 | Reasignación automática | Si un evento deja sin cupo la zona de una retención vigente, el sistema la reasigna a la zona con cupo más cercana | La retención original pasa a REASIGNADA y nace una VIGENTE en la zona alternativa (mismo piso primero); si no hay alternativa pasa a INVALIDADA | CP-05 |
+| RF-16 | Confirmar llegada | Al terminar la ruta, el conductor confirma que estacionó | La retención pasa a UTILIZADA, la zona suma un vehículo (evento con fuente CONDUCTOR), el cupo lógico se mantiene y se guarda la ubicación con el puesto | CP-10 |
+| RF-17 | Historial de pagos | La *Billetera* muestra los pagos realizados | El pago aparece con fecha, valor, tiempo y método | CP-11 |
 
 ## 5. Requerimientos no funcionales
 
@@ -73,8 +73,8 @@ Diseñar y desarrollar una aplicación web progresiva (FastParking) que permita 
 | RN-12 | Cupo lógico = capacidad − ocupados (eventos) − retenciones vigentes, nunca negativo |
 | RN-13 | Si un evento genera exceso, ceden primero las retenciones más recientes |
 | RN-14 | Orden de cercanía: mismo piso y menor diferencia de `orden_cercania`; luego pisos vecinos |
-| RN-16 | Cobro: minutos completos o fracción desde la entrada (mínimo 1) × tarifa ilustrativa por minuto; un pago por tiquete; la salida se habilita 15 min después del pago |
 | RN-15 | Un evento repetido (mismo `id_evento`) no se aplica dos veces; un evento más antiguo que el último aplicado se descarta |
+| RN-16 | Cobro: minutos completos o fracción desde la entrada (mínimo 1) × tarifa ilustrativa por minuto; un pago por tiquete; la salida se habilita 15 min después del pago |
 
 ## 7. Restricciones
 
