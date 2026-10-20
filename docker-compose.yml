@@ -1,0 +1,42 @@
+# FastParking — entorno completo: base de datos + API + PWA
+# Uso: docker compose up --build   →   PWA en http://localhost:8080
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: fastparking
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fastparking_local}
+      POSTGRES_DB: fastparking
+    ports:
+      - "5433:5432"   # 5433 en tu equipo para no chocar con un PostgreSQL local
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastparking -d fastparking"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgres://fastparking:${POSTGRES_PASSWORD:-fastparking_local}@db:5432/fastparking
+      SIMULATOR_API_KEY: ${SIMULATOR_API_KEY:-cambia-esta-clave}
+      RETENTION_MINUTES: 10
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
