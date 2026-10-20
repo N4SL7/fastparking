@@ -23,7 +23,7 @@ services:
     environment:
       DATABASE_URL: postgres://fastparking:${POSTGRES_PASSWORD:-fastparking_local}@db:5432/fastparking
       SIMULATOR_API_KEY: ${SIMULATOR_API_KEY:-cambia-esta-clave}
-      RETENTION_MINUTES: 10
+      RETENTION_MINUTES: 7
       PORT: 3000
     ports:
       - "3000:3000"

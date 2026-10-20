@@ -1,6 +1,6 @@
 # FastParking
 
-Aplicación web progresiva (PWA) para que los visitantes del **Centro Comercial Parque La Colina (Bogotá)** consulten la **disponibilidad de parqueadero por zona y piso**, soliciten una **retención temporal simulada** de una zona, reciban una **reasignación automática** si la zona se ocupa y **guarden dónde dejaron el vehículo**.
+Aplicación web progresiva (PWA) para que los visitantes del **Centro Comercial Parque La Colina (Bogotá)** abran la app desde el **QR del tiquete**, consulten la **disponibilidad de parqueadero por zona y piso**, soliciten una **retención temporal simulada de 7 minutos**, reciban una **reasignación automática** si la zona se ocupa, sigan una **ruta animada en el mapa 3D del sótano** hasta su puesto y **guarden dónde dejaron el vehículo**.
 
 > **Prototipo académico.** La disponibilidad, los eventos de ocupación y los datos de zonas son **simulados e ilustrativos**. No hay integración con sensores, talanqueras ni sistemas de pago del centro comercial. Una retención **no garantiza** el cupo físico.
 
@@ -80,7 +80,7 @@ docker compose up --build
 
 - PWA: http://localhost:8080 (desde el celular en la misma red: `http://<IP-de-tu-PC>:8080`)
 - API: http://localhost:3000/api/health
-- Para simular un QR de tiquete: http://localhost:8080/?t=TIQUETE-0001
+- Sin token, la PWA muestra la **simulación del tiquete con su QR**; también puedes abrir directamente http://localhost:8080/?t=TIQUETE-0001
 
 ### Opción B — Desarrollo local
 
@@ -115,7 +115,13 @@ node simulator/simular.mjs escenario hora-pico      # secuencia de eventos
 Con Docker (opción A), ejecuta el simulador desde tu equipo con: `SIMULATOR_API_KEY=<la clave de tu .env> node simulator/simular.mjs ...`
 (en PowerShell: `$env:SIMULATOR_API_KEY="<clave>"; node simulator/simular.mjs ...`).
 
-**Demostración sugerida:** abre la PWA, retén una zona de S1-C y luego ejecuta `llenar S1-C`: la PWA avisa que la retención fue **reasignada** a la zona más cercana con cupo.
+**Demostración sugerida (5 min):**
+
+1. Abre http://localhost:8080: aparece el **tiquete simulado con su QR**. Pulsa *Simular escaneo del QR* (o escanéalo con el celular en la misma red).
+2. En *Inicio* retén **S1-C** (7 minutos).
+3. Ejecuta `node simulator/simular.mjs llenar S1-C`: la PWA avisa que la retención fue **reasignada** a la zona más cercana con cupo.
+4. Pulsa *Ir con la ruta*: el **mapa 3D del sótano** muestra la flecha recorriendo la ruta hasta tu puesto.
+5. Pulsa *Confirmar que estacioné aquí*: la retención queda **UTILIZADA** y *Mi vehículo* muestra dónde quedó el carro.
 
 ## Pruebas
 
@@ -125,7 +131,7 @@ cd backend
 npm test
 ```
 
-25 pruebas automatizadas: reglas de negocio (unitarias) y casos de prueba CP-01 a CP-09 contra PostgreSQL real (incluida la prueba de concurrencia de dos conductores por el último cupo). Evidencia en [`docs/pruebas/`](docs/pruebas/).
+26 pruebas automatizadas: reglas de negocio (unitarias) y casos de prueba CP-01 a CP-10 contra PostgreSQL real (incluida la prueba de concurrencia de dos conductores por el último cupo). Evidencia en [`docs/pruebas/`](docs/pruebas/).
 
 ## Variables de entorno
 
@@ -137,7 +143,7 @@ No se suben secretos al repositorio: copia los archivos `.env.example` como `.en
 | `TEST_DATABASE_URL` | backend | Base de datos de pruebas |
 | `PORT` | backend | Puerto de la API (3000) |
 | `SIMULATOR_API_KEY` | backend / raíz | Clave que exige el endpoint del simulador |
-| `RETENTION_MINUTES` | backend | Vigencia de una retención (10) |
+| `RETENTION_MINUTES` | backend | Vigencia de una retención (7) |
 | `SESSION_HOURS` | backend | Vigencia de la sesión anónima (12) |
 | `EXPIRATION_INTERVAL_MS` | backend | Frecuencia del planificador de expiraciones |
 | `POSTGRES_PASSWORD` | raíz | Contraseña local del contenedor de PostgreSQL |
@@ -152,6 +158,7 @@ No se suben secretos al repositorio: copia los archivos `.env.example` como `.en
 | POST | `/api/retentions` | RF-04 |
 | GET | `/api/retentions/current` · `/api/retentions/:id` | RF-04, RF-05 |
 | POST | `/api/retentions/:id/cancel` | RF-08 |
+| POST | `/api/retentions/:id/arrive` | RF-16 (llegada confirmada) |
 | PUT / GET | `/api/vehicle-location` | RF-09 |
 | POST | `/api/simulator/events` | RF-06, RF-07, RF-12, RF-15 |
 | GET | `/api/events/stream` | RF-06 (SSE) |
@@ -167,5 +174,5 @@ Actualmente **no está desplegado en la nube**; se ejecuta localmente con Docker
 - Retención temporal **simulada**, no garantizada (no bloquea físicamente un cupo).
 - Disponibilidad **por zona**, no por espacio individual.
 - Eventos de ocupación **simulados**; sin conexión a sensores reales.
-- Plano **ilustrativo** de referencia, sin localización en vivo.
+- Plano **ilustrativo** del sótano; la ruta y la flecha son una **navegación simulada**, sin localización en vivo.
 - Sin pagos.

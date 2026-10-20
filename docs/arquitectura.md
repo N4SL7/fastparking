@@ -25,7 +25,7 @@ Fuentes editables: `diagramas/fuentes/*.dot` (Graphviz) generados por `diagramas
 
 | Contenedor | Tecnología | Responsabilidad | No debe hacer |
 |---|---|---|---|
-| PWA FastParking | React 18 + TypeScript + Vite, nginx | Mostrar zonas, frescura, retención con cuenta regresiva, avisos, ubicación y plano | Decidir si una retención es válida o resolver concurrencia |
+| PWA FastParking | React 18 + TypeScript + Vite, nginx | Tiquete con QR simulado, zonas, frescura, retención de 7 min, mapa 3D del sótano con navegación simulada, avisos y ubicación | Decidir si una retención es válida o resolver concurrencia |
 | API FastParking | Node.js + Express + TypeScript | Validar, aplicar reglas, transacciones, expiración, reasignación, SSE | Exponer secretos o confiar en estados calculados en el cliente |
 | Base de datos | PostgreSQL 16 | Persistir y garantizar integridad (FK, CHECK, índice único parcial) | Guardar datos personales o financieros |
 | Simulador | CLI Node.js | Generar eventos ENTRADA/SALIDA etiquetados como SIMULADOR | Presentarse como sensor real |
@@ -54,6 +54,7 @@ Fuentes editables: `diagramas/fuentes/*.dot` (Graphviz) generados por `diagramas
 | REST | `GET /api/zones` | Disponibilidad agregada y marca temporal |
 | REST | `POST /api/retentions` | Solicita retención (transacción + bloqueo) |
 | REST | `GET /api/retentions/current`, `GET /api/retentions/:id` | Estado y vencimiento |
+| REST | `POST /api/retentions/:id/arrive` | Confirma llegada: UTILIZADA + ocupación + ubicación (RF-16) |
 | REST | `POST /api/retentions/:id/cancel` | Cancela (se conserva en el historial; por eso no es DELETE) |
 | REST | `PUT/GET /api/vehicle-location` | Ubicación del vehículo |
 | REST | `POST /api/simulator/events` | Evento simulado (cabecera `x-simulator-key`) |

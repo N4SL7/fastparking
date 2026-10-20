@@ -30,7 +30,7 @@ def entidad(nombre, filas, nota=""):
     return (f'{nombre} [label=<<TABLE BORDER="1" COLOR="{BRAND}" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">'
             f'<TR><TD COLSPAN="3" BGCOLOR="{BRAND}"><FONT COLOR="white"><B>{nombre.upper()}</B></FONT></TD></TR>{rows}{nota_html}</TABLE>>];')
 
-NOTA_RET = 'estado ∈ VIGENTE·CANCELADA·EXPIRADA·REASIGNADA·INVALIDADA<BR ALIGN="LEFT"/>CHECK vence_en &gt; creada_en · única VIGENTE por sesión<BR ALIGN="LEFT"/>'
+NOTA_RET = 'estado ∈ VIGENTE·CANCELADA·EXPIRADA·REASIGNADA·INVALIDADA·UTILIZADA<BR ALIGN="LEFT"/>CHECK vence_en &gt; creada_en · única VIGENTE por sesión<BR ALIGN="LEFT"/>'
 mer = f'''digraph MER {{
 graph [rankdir=LR, splines=ortho, nodesep=0.7, ranksep=1.1, fontname="{FONT}", pad=0.3, bgcolor="white",
        label="FastParking — Modelo Entidad-Relación v1.0 (PostgreSQL)   ·   PK clave primaria · FK clave foránea · UK única", labelloc=t, fontsize=16, fontcolor="{BRAND}"];
@@ -41,8 +41,8 @@ edge [fontname="{FONT}", fontsize=9, color="{INK}", dir=both, fontcolor="{BRAND}
 {entidad("sesion_visita", [("PK","id_sesion","UUID"),("UK","token_hash","CHAR(64) SHA-256"),("","creada_en","TIMESTAMPTZ"),("","expira_en","TIMESTAMPTZ")], "CHECK expira_en &gt; creada_en · sin datos personales")}
 {entidad("retencion", [("PK","id_retencion","UUID"),("FK","id_sesion","UUID"),("FK","id_zona","SMALLINT"),("FK","id_retencion_origen","UUID (nula)"),("","estado","VARCHAR(12)"),("","creada_en","TIMESTAMPTZ"),("","vence_en","TIMESTAMPTZ"),("","cerrada_en","TIMESTAMPTZ (nula)"),("","motivo_cierre","VARCHAR(60)")], NOTA_RET)}
 {entidad("historial_retencion", [("PK","id_historial","BIGSERIAL"),("FK","id_retencion","UUID"),("FK","id_evento","UUID (nula)"),("","estado_anterior","VARCHAR(12)"),("","estado_nuevo","VARCHAR(12)"),("","motivo","VARCHAR(60)"),("","registrado_en","TIMESTAMPTZ")])}
-{entidad("evento_ocupacion", [("PK","id_evento","UUID (idempotencia)"),("FK","id_zona","SMALLINT"),("","tipo","ENTRADA · SALIDA"),("","cantidad","SMALLINT &gt; 0"),("","fuente","SIMULADOR"),("","ocurrido_en","TIMESTAMPTZ"),("","recibido_en","TIMESTAMPTZ"),("","resultado","APLICADO · DESCARTADO_TARDIO")])}
-{entidad("ubicacion_vehiculo", [("PK","id_ubicacion","UUID"),("FK UK","id_sesion","UUID"),("FK","id_zona","SMALLINT"),("","referencia","VARCHAR(80)"),("","registrada_en","TIMESTAMPTZ")])}
+{entidad("evento_ocupacion", [("PK","id_evento","UUID (idempotencia)"),("FK","id_zona","SMALLINT"),("","tipo","ENTRADA · SALIDA"),("","cantidad","SMALLINT &gt; 0"),("","fuente","SIMULADOR · CONDUCTOR"),("","ocurrido_en","TIMESTAMPTZ"),("","recibido_en","TIMESTAMPTZ"),("","resultado","APLICADO · DESCARTADO_TARDIO")])}
+{entidad("ubicacion_vehiculo", [("PK","id_ubicacion","UUID"),("FK UK","id_sesion","UUID"),("FK","id_zona","SMALLINT"),("","puesto","SMALLINT &gt; 0 (nulo)"),("","referencia","VARCHAR(80)"),("","registrada_en","TIMESTAMPTZ")])}
 piso -> zona [arrowtail=teetee, arrowhead=crowtee, xlabel="contiene  1 : 1..N"];
 zona -> retencion [arrowtail=teetee, arrowhead=crowodot, xlabel="es retenida en  1 : 0..N"];
 sesion_visita -> retencion [arrowtail=teetee, arrowhead=crowodot, xlabel="solicita  1 : 0..N"];
@@ -70,7 +70,7 @@ EXTF = "#9aa8ad"
 
 c1 = f'''digraph C4_1 {{ {HEAD}
 graph [label="C4 · Nivel 1 — Contexto del sistema FastParking"];
-{persona("conductor", "Conductor / visitante", "Escanea el QR del tiquete, consulta zonas,<BR/>retiene una zona y guarda dónde parqueó")}
+{persona("conductor", "Conductor / visitante", "Escanea el QR del tiquete, consulta zonas,<BR/>retiene una zona, sigue la ruta simulada<BR/>y guarda dónde parqueó")}
 {persona("operador", "Operador de pruebas", "Ejecuta escenarios de ocupación<BR/>simulados durante la demostración")}
 {caja("fp", "FastParking", "Sistema de software", "PWA + API: disponibilidad por zona,<BR/>retenciones temporales simuladas,<BR/>reasignación automática y ubicación del vehículo")}
 {caja("sens", "Sensores / controlador del parqueadero", "Sistema externo — FUTURO", "Indicadores de cupos por piso de Parque La Colina.<BR/>Sin fabricante, API ni autorización: NO integrado", fill=EXTF, dashed=True)}
@@ -89,7 +89,7 @@ graph [label="C4 · Nivel 2 — Contenedores de FastParking", compound=true];
 {persona("conductor", "Conductor / visitante", "Navegador móvil")}
 {persona("operador", "Operador de pruebas", "Terminal")}
 subgraph cluster_fp {{ label=<<B>FastParking</B> [Sistema de software]>; style="dashed,rounded"; color="{BRAND}"; fontcolor="{BRAND}"; fontsize=12;
-  {caja("pwa", "PWA FastParking", "Contenedor: React 18 + TypeScript + Vite, servida por nginx", "Zonas por piso, retención con cuenta regresiva,<BR/>avisos de reasignación, mi vehículo y plano.<BR/>Service worker: solo cachea la interfaz")}
+  {caja("pwa", "PWA FastParking", "Contenedor: React 18 + TypeScript + Vite, servida por nginx", "Tiquete con QR simulado, zonas por piso,<BR/>retención de 7 min, mapa 3D del sótano con<BR/>navegación simulada, avisos y mi vehículo.<BR/>Service worker: solo cachea la interfaz")}
   {caja("api", "API FastParking", "Contenedor: Node.js + Express + TypeScript", "Monolito modular: reglas de negocio,<BR/>concurrencia, expiración, reasignación,<BR/>adaptador de eventos y notificaciones SSE")}
   {caja("db", "Base de datos", "Contenedor: PostgreSQL 16", "Pisos, zonas, sesiones, retenciones,<BR/>historial, eventos y ubicaciones", shape="cylinder")}
   {caja("sim", "Simulador de eventos", "Contenedor: CLI Node.js (simulator/simular.mjs)", "Genera eventos ENTRADA/SALIDA<BR/>etiquetados como SIMULADOR")}
@@ -118,7 +118,7 @@ subgraph cluster_api {{ label=<<B>API FastParking</B> [Contenedor: Node.js + Exp
   {comp("http", "Capa HTTP", "app.ts + *.routes.ts", "Enruta, valida con Zod, exige sesión<BR/>y unifica errores (errors.ts)")}
   {comp("ses", "Sesiones", "modules/sessions", "Sesión anónima desde el token<BR/>del QR (solo hash SHA-256)")}
   {comp("disp", "Disponibilidad", "modules/zones", "Cupo lógico = capacidad − ocupados<BR/>− retenidas; estado textual; bloqueo de zona")}
-  {comp("ret", "Retenciones", "modules/retentions/retentions.service", "Solicita y cancela en transacción;<BR/>1 vigente por sesión")}
+  {comp("ret", "Retenciones", "modules/retentions/retentions.service", "Solicita, cancela y confirma llegada<BR/>en transacción; 1 vigente por sesión")}
   {comp("reas", "Motor de reasignación", "modules/retentions/reassignment.service", "Busca la zona más cercana con cupo<BR/>(mismo piso → pisos vecinos)")}
   {comp("exp", "Planificador de expiraciones", "modules/retentions/expiration.scheduler", "Cada 15 s marca EXPIRADAS<BR/>las retenciones vencidas")}
   {comp("adap", "Adaptador de eventos", "modules/events/event.adapter", "Contrato FuenteOcupacion:<BR/>normaliza el mensaje de la fuente")}
@@ -149,8 +149,8 @@ def modulo(id_, nombre, estereotipo, miembros):
 c4 = f'''digraph C4_4 {{ {HEAD}
 graph [label="C4 · Nivel 4 — Código del flujo de retenciones (archivos y funciones reales del repositorio)", rankdir=TB, nodesep=0.5, ranksep=0.7];
 edge [arrowhead=vee, style=dashed];
-{modulo("routes", "retentions.routes.ts", "router Express", ["POST /api/retentions", "GET /api/retentions/current", "GET /api/retentions/:id", "POST /api/retentions/:id/cancel", "use(requerirSesion)"])}
-{modulo("service", "retentions.service.ts", "servicio", ["+ solicitarRetencion(idSesion, idZona): RetencionVista", "+ cancelarRetencion(idSesion, idRetencion): RetencionVista", "+ obtenerRetencionActual(idSesion): RetencionVista | null", "+ obtenerRetencion(idSesion, idRetencion): RetencionVista", "- sugerirAlternativas(idZonaOrigen, limite)"])}
+{modulo("routes", "retentions.routes.ts", "router Express", ["POST /api/retentions", "GET /api/retentions/current", "GET /api/retentions/:id", "POST /api/retentions/:id/cancel", "POST /api/retentions/:id/arrive", "use(requerirSesion)"])}
+{modulo("service", "retentions.service.ts", "servicio", ["+ solicitarRetencion(idSesion, idZona): RetencionVista", "+ cancelarRetencion(idSesion, idRetencion): RetencionVista", "+ confirmarLlegada(idSesion, idRetencion, puesto?): RetencionVista", "+ obtenerRetencionActual(idSesion): RetencionVista | null", "+ obtenerRetencion(idSesion, idRetencion): RetencionVista", "- sugerirAlternativas(idZonaOrigen, limite)"])}
 {modulo("reas", "reassignment.service.ts", "servicio", ["+ reasignarOInvalidar(tx, afectada, idEvento): ResultadoConflicto"])}
 {modulo("events", "events.service.ts", "servicio", ["+ procesarEvento(evento: EventoNormalizado): ResultadoEvento"])}
 {modulo("adapter", "event.adapter.ts", "interfaz + implementación", ["interface FuenteOcupacion { normalizar(mensaje) }", "+ fuenteSimulador: FuenteOcupacion", "+ aplicarOcupacion(ocupados, capacidad, tipo, n)"])}
@@ -159,12 +159,13 @@ edge [arrowhead=vee, style=dashed];
 {modulo("avail", "availability.service.ts", "servicio", ["+ listarZonas(db): ZonaVista[]", "+ bloquearZona(db, idZona): ZonaVista", "+ marcarZonaActualizada(db, idZona)"])}
 {modulo("arules", "availability.rules.ts", "reglas puras", ["+ calcularCupoLogico(cap, ocupados, retenidas)", "+ clasificarZona(cupo, cap): EstadoZona", "+ ordenarAlternativas(origen, candidatas)"])}
 {modulo("sched", "expiration.scheduler.ts", "temporizador", ["+ iniciarPlanificadorExpiraciones(ms)", "+ ejecutarExpiracion(): number"])}
+{modulo("ubi", "locations.service.ts", "servicio", ["+ guardarUbicacion(db, idSesion, idZona, referencia?, puesto?)", "+ obtenerUbicacion(db, idSesion)"])}
 {modulo("pool", "db/pool.ts", "infraestructura", ["+ pool: pg.Pool", "+ withTransaction(fn) — reintenta 40P01/40001"])}
 {modulo("sse", "shared/realtime.ts", "clase", ["NotificadorSSE", "+ suscribir(res, idSesion)", "+ publicarZonasActualizadas()", "+ publicarRetencion(idSesion, datos)"])}
 routes -> service;
 events -> adapter [label=" tipos"];
 events -> reas; events -> rules; events -> repo;
-service -> repo; service -> avail; service -> arules; service -> pool; service -> sse;
+service -> repo; service -> avail; service -> ubi; service -> arules; service -> pool; service -> sse;
 reas -> repo; reas -> avail; reas -> arules;
 avail -> arules;
 sched -> repo; sched -> sse;

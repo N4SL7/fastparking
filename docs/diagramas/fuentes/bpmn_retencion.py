@@ -11,12 +11,12 @@ OUT = Path(__file__).resolve().parent.parent
 W = 2060
 # ---- Participantes y carriles ---------------------------------------------------------------
 POOL_COND = dict(id="P_Conductor", name="Conductor (visitante)", x=40, y=20, w=W - 60, h=70)
-POOL_FP = dict(id="P_FastParking", name="FastParking", x=40, y=120, w=W - 60, h=700)
+POOL_FP = dict(id="P_FastParking", name="FastParking", x=40, y=120, w=W - 60, h=830)
 LANE_PWA = dict(id="L_PWA", name="PWA (navegador móvil)", x=70, y=120, w=W - 90, h=230)
-LANE_API = dict(id="L_API", name="API y dominio (Node.js + PostgreSQL)", x=70, y=350, w=W - 90, h=470)
-POOL_SIM = dict(id="P_Simulador", name="Simulador de eventos de ocupación (fuente SIMULADOR)", x=40, y=850, w=W - 60, h=70)
+LANE_API = dict(id="L_API", name="API y dominio (Node.js + PostgreSQL)", x=70, y=350, w=W - 90, h=600)
+POOL_SIM = dict(id="P_Simulador", name="Simulador de eventos de ocupación (fuente SIMULADOR)", x=40, y=980, w=W - 60, h=70)
 
-P1, R1, R2, R3, R4 = 235, 420, 540, 660, 770  # filas (centro y)
+P1, R1, R2, R3, R4, R5 = 235, 420, 525, 630, 770, 885  # filas (centro y)
 TW, TH = 130, 70
 
 nodes = {}
@@ -30,28 +30,31 @@ task("T_Sesion", "Abrir sesión anónima", 262, P1, "L_PWA")
 task("T_Zonas", "Mostrar zonas por piso con hora de actualización", 400, P1, "L_PWA")
 task("T_Solicitar", "Enviar solicitud de retención", 560, P1, "L_PWA")
 task("T_Alternativas", "Mostrar alternativas cercanas", 760, P1, "L_PWA")
-task("T_Mostrar", "Mostrar retención y cuenta regresiva", 1010, P1, "L_PWA")
+task("T_Mostrar", "Mostrar retención, cuenta regresiva y ruta animada", 1010, P1, "L_PWA")
 task("T_NotifReasig", "Notificar reasignación (SSE)", 1880, P1, "L_PWA")
 # Carril API
 task("T_Bloquear", "Bloquear zona y calcular cupo lógico", 560, R1, "L_API")
 gw("G_Cupo", "exclusiveGateway", "¿Cupo lógico > 0 y sin retención vigente?", 760, R1, "L_API")
-task("T_Crear", "Crear retención VIGENTE (10 min) y registrar historial", 900, R1, "L_API")
+task("T_Crear", "Crear retención VIGENTE (7 min) y registrar historial", 900, R1, "L_API")
 gw("G_Espera", "eventBasedGateway", "", 1130, R1, "L_API")
-ev("C_Cancel", "intermediateCatchEvent", "Cancelación solicitada", 1250, R1, "L_API", "message")
-ev("C_Timer", "intermediateCatchEvent", "Vence a los 10 min", 1250, R2, "L_API", "timer")
-ev("C_Ocup", "intermediateCatchEvent", "Evento de ocupación recibido", 1250, R3, "L_API", "message")
-task("T_Cancelar", "Marcar CANCELADA y liberar cupo", 1400, R1, "L_API")
-ev("E_Cancel", "endEvent", "Retención cancelada", 1540, R1, "L_API")
-task("T_Expirar", "Marcar EXPIRADA", 1400, R2, "L_API")
-ev("E_Expira", "endEvent", "Retención expirada", 1540, R2, "L_API")
-task("T_Evento", "Validar evento (duplicado / tardío) y actualizar ocupación", 1400, R3, "L_API")
-gw("G_Conflicto", "exclusiveGateway", "¿Ocupados + retenidas > capacidad?", 1550, R3, "L_API")
-ev("E_SinConf", "endEvent", "Retención sigue vigente", 1550, R4, "L_API")
-task("T_Buscar", "Buscar zona más cercana con cupo", 1690, R3, "L_API")
-gw("G_Alt", "exclusiveGateway", "¿Hay alternativa?", 1880, R3, "L_API")
+ev("C_Llegada", "intermediateCatchEvent", "Llegada confirmada", 1250, R1, "L_API", "message")
+ev("C_Cancel", "intermediateCatchEvent", "Cancelación solicitada", 1250, R2, "L_API", "message")
+ev("C_Timer", "intermediateCatchEvent", "Vence a los 7 min", 1250, R3, "L_API", "timer")
+ev("C_Ocup", "intermediateCatchEvent", "Evento de ocupación recibido", 1250, R4, "L_API", "message")
+task("T_Llegar", "Marcar UTILIZADA, sumar ocupación y guardar ubicación", 1400, R1, "L_API")
+ev("E_Llegada", "endEvent", "Conductor estacionó", 1540, R1, "L_API")
+task("T_Cancelar", "Marcar CANCELADA y liberar cupo", 1400, R2, "L_API")
+ev("E_Cancel", "endEvent", "Retención cancelada", 1540, R2, "L_API")
+task("T_Expirar", "Marcar EXPIRADA", 1400, R3, "L_API")
+ev("E_Expira", "endEvent", "Retención expirada", 1540, R3, "L_API")
+task("T_Evento", "Validar evento (duplicado / tardío) y actualizar ocupación", 1400, R4, "L_API")
+gw("G_Conflicto", "exclusiveGateway", "¿Ocupados + retenidas > capacidad?", 1550, R4, "L_API")
+ev("E_SinConf", "endEvent", "Retención sigue vigente", 1550, R5, "L_API")
+task("T_Buscar", "Buscar zona más cercana con cupo", 1690, R4, "L_API")
+gw("G_Alt", "exclusiveGateway", "¿Hay alternativa?", 1880, R4, "L_API")
 task("T_Reasignar", "Marcar REASIGNADA y crear nueva VIGENTE", 1880, R1, "L_API")
-task("T_Invalidar", "Marcar INVALIDADA y notificar (SSE)", 1880, R4, "L_API")
-ev("E_Invalida", "endEvent", "Retención invalidada", 2010, R4, "L_API")
+task("T_Invalidar", "Marcar INVALIDADA y notificar (SSE)", 1880, R5, "L_API")
+ev("E_Invalida", "endEvent", "Retención invalidada", 2010, R5, "L_API")
 
 def b(i):
     n = nodes[i]; return n["cx"] - n["w"] / 2, n["cy"] - n["h"] / 2, n["w"], n["h"]
@@ -72,9 +75,12 @@ f("T_Alternativas", "T_Solicitar", [T("T_Alternativas"), (760, 150), (560, 150),
 f("G_Cupo", "T_Crear", [Rr("G_Cupo"), L("T_Crear")], "Sí")
 f("T_Crear", "T_Mostrar", [Rr("T_Crear"), (1010, R1), B("T_Mostrar")])
 f("T_Mostrar", "G_Espera", [Rr("T_Mostrar"), (1130, P1), T("G_Espera")])
-f("G_Espera", "C_Cancel", [Rr("G_Espera"), L("C_Cancel")])
-f("G_Espera", "C_Timer", [B("G_Espera"), (1130, R2), L("C_Timer")])
-f("G_Espera", "C_Ocup", [(1130, R2), (1130, R3), L("C_Ocup")])
+f("G_Espera", "C_Llegada", [Rr("G_Espera"), L("C_Llegada")])
+f("G_Espera", "C_Cancel", [B("G_Espera"), (1130, R2), L("C_Cancel")])
+f("G_Espera", "C_Timer", [(1130, R2), (1130, R3), L("C_Timer")])
+f("G_Espera", "C_Ocup", [(1130, R3), (1130, R4), L("C_Ocup")])
+f("C_Llegada", "T_Llegar", [Rr("C_Llegada"), L("T_Llegar")])
+f("T_Llegar", "E_Llegada", [Rr("T_Llegar"), L("E_Llegada")])
 f("C_Cancel", "T_Cancelar", [Rr("C_Cancel"), L("T_Cancelar")])
 f("T_Cancelar", "E_Cancel", [Rr("T_Cancelar"), L("E_Cancel")])
 f("C_Timer", "T_Expirar", [Rr("C_Timer"), L("T_Expirar")])
@@ -97,7 +103,8 @@ m("M_QR", "P_Conductor", "S_QR", "escanea QR", [(145, CY), T("S_QR")])
 m("M_Zonas", "T_Zonas", "P_Conductor", "zonas y estado", [T("T_Zonas"), (400, CY)])
 m("M_Eleccion", "P_Conductor", "T_Solicitar", "zona elegida", [(590, CY), (590, P1 - TH / 2)])
 m("M_Retencion", "T_Mostrar", "P_Conductor", "retención y aviso", [(1050, P1 - TH / 2), (1050, CY)])
-m("M_Cancel", "P_Conductor", "C_Cancel", "cancelar", [(1250, CY), T("C_Cancel")])
+m("M_Llegada", "P_Conductor", "C_Llegada", "estacioné", [(1250, CY), T("C_Llegada")])
+m("M_Cancel", "P_Conductor", "C_Cancel", "cancelar", [(1330, CY), (1330, R2 - 40), (1264, R2 - 12)])
 m("M_Reasig", "T_NotifReasig", "P_Conductor", "nueva zona", [(1910, P1 - TH / 2), (1910, CY)])
 m("M_Ocup", "P_Simulador", "C_Ocup", "ENTRADA / SALIDA", [(1250, SY), B("C_Ocup")])
 
@@ -111,7 +118,7 @@ x = ['<?xml version="1.0" encoding="UTF-8"?>',
      '<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" '
      'xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" '
      'id="Def_FastParking" targetNamespace="https://fastparking.local/bpmn" exporter="FastParking generador" exporterVersion="1.0">',
-     '<bpmn:message id="Msg_QR" name="QR escaneado" /><bpmn:message id="Msg_Cancel" name="Cancelación" /><bpmn:message id="Msg_Ocup" name="Evento de ocupación" />',
+     '<bpmn:message id="Msg_QR" name="QR escaneado" /><bpmn:message id="Msg_Cancel" name="Cancelación" /><bpmn:message id="Msg_Ocup" name="Evento de ocupación" /><bpmn:message id="Msg_Llegada" name="Llegada confirmada" />',
      '<bpmn:collaboration id="Collab_Retencion">',
      f'<bpmn:participant id="{POOL_COND["id"]}" name="{escape(POOL_COND["name"])}" />',
      f'<bpmn:participant id="{POOL_FP["id"]}" name="FastParking" processRef="Proc_Retencion" />',
@@ -129,10 +136,10 @@ for k, n in nodes.items():
     t = n["t"]; tag = "task" if t == "task" else t
     body = "".join(f"<bpmn:incoming>{i}</bpmn:incoming>" for i in inc[k]) + "".join(f"<bpmn:outgoing>{o}</bpmn:outgoing>" for o in out[k])
     if n.get("deco") == "message":
-        ref = {"S_QR": "Msg_QR", "C_Cancel": "Msg_Cancel", "C_Ocup": "Msg_Ocup"}[k]
+        ref = {"S_QR": "Msg_QR", "C_Cancel": "Msg_Cancel", "C_Ocup": "Msg_Ocup", "C_Llegada": "Msg_Llegada"}[k]
         body += f'<bpmn:messageEventDefinition id="MED_{k}" messageRef="{ref}" />'
     if n.get("deco") == "timer":
-        body += f'<bpmn:timerEventDefinition id="TED_{k}"><bpmn:timeDuration>PT10M</bpmn:timeDuration></bpmn:timerEventDefinition>'
+        body += f'<bpmn:timerEventDefinition id="TED_{k}"><bpmn:timeDuration>PT7M</bpmn:timeDuration></bpmn:timerEventDefinition>'
     x.append(f'<bpmn:{tag} id="{k}" name="{escape(n["name"])}">{body}</bpmn:{tag}>')
 for fid, s, t, name, _ in flows:
     x.append(f'<bpmn:sequenceFlow id="{fid}" name="{escape(name)}" sourceRef="{s}" targetRef="{t}" />')
