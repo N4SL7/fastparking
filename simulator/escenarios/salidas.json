@@ -1,0 +1,8 @@
+{
+  "descripcion": "Salidas: se liberan cupos en varias zonas del Sótano 1 y 2 (datos ilustrativos).",
+  "pasos": [
+    { "zona": "S1-B", "tipo": "SALIDA", "cantidad": 3, "esperarMs": 0 },
+    { "zona": "S2-B", "tipo": "SALIDA", "cantidad": 4, "esperarMs": 2000 },
+    { "zona": "S2-D", "tipo": "SALIDA", "cantidad": 2, "esperarMs": 2000 }
+  ]
+}

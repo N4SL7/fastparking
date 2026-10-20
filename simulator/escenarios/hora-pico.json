@@ -1,0 +1,10 @@
+{
+  "descripcion": "Hora pico en el Sótano 1: entran vehículos a la Zona C cada 3 segundos hasta llenarla (datos ilustrativos).",
+  "pasos": [
+    { "zona": "S1-C", "tipo": "ENTRADA", "cantidad": 2, "esperarMs": 0 },
+    { "zona": "S1-C", "tipo": "ENTRADA", "cantidad": 2, "esperarMs": 3000 },
+    { "zona": "S1-A", "tipo": "ENTRADA", "cantidad": 1, "esperarMs": 3000 },
+    { "zona": "S1-C", "tipo": "ENTRADA", "cantidad": 1, "esperarMs": 3000 },
+    { "zona": "S1-B", "tipo": "SALIDA", "cantidad": 2, "esperarMs": 3000 }
+  ]
+}
