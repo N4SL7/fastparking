@@ -1,0 +1,34 @@
+digraph C4_3 { graph [fontname="Segoe UI,Arial,Helvetica,sans-serif", pad=0.4, nodesep=0.9, ranksep=1.0, bgcolor="white", labelloc=t, fontsize=16, fontcolor="#083E4D"];
+node [fontname="Segoe UI,Arial,Helvetica,sans-serif", fontsize=11, margin="0.25,0.15", width=2.6];
+edge [fontname="Segoe UI,Arial,Helvetica,sans-serif", fontsize=9.5, color="#4b6169", fontcolor="#33474e", arrowsize=0.8];
+graph [label="C4 · Nivel 3 — Componentes del contenedor API FastParking (backend/src)", nodesep=0.6, ranksep=0.9];
+node [width=2.4];
+pwa [shape=box, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>PWA FastParking</B><BR/><FONT POINT-SIZE="9">[Contenedor]</FONT><BR/><BR/><FONT POINT-SIZE="10">React + TypeScript</FONT>>, fontcolor="white"];
+sim [shape=box, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>Simulador de eventos</B><BR/><FONT POINT-SIZE="9">[Contenedor]</FONT><BR/><BR/><FONT POINT-SIZE="10">CLI Node.js</FONT>>, fontcolor="white"];
+db [shape=cylinder, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>PostgreSQL</B><BR/><FONT POINT-SIZE="9">[Contenedor]</FONT><BR/><BR/><FONT POINT-SIZE="10">Base de datos</FONT>>, fontcolor="white"];
+subgraph cluster_api { label=<<B>API FastParking</B> [Contenedor: Node.js + Express]>; style="dashed,rounded"; color="#083E4D"; fontcolor="#083E4D";
+  http [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Capa HTTP</B><BR/><FONT POINT-SIZE="9">[Componente · app.ts + *.routes.ts]</FONT><BR/><BR/><FONT POINT-SIZE="10">Enruta, valida con Zod, exige sesión<BR/>y unifica errores (errors.ts)</FONT>>, fontcolor="white"];
+  ses [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Sesiones</B><BR/><FONT POINT-SIZE="9">[Componente · modules/sessions]</FONT><BR/><BR/><FONT POINT-SIZE="10">Sesión anónima desde el token<BR/>del QR (solo hash SHA-256)</FONT>>, fontcolor="white"];
+  disp [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Disponibilidad</B><BR/><FONT POINT-SIZE="9">[Componente · modules/zones]</FONT><BR/><BR/><FONT POINT-SIZE="10">Cupo lógico = capacidad − ocupados<BR/>− retenidas; estado textual; bloqueo de zona</FONT>>, fontcolor="white"];
+  ret [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Retenciones</B><BR/><FONT POINT-SIZE="9">[Componente · modules/retentions/retentions.service]</FONT><BR/><BR/><FONT POINT-SIZE="10">Solicita y cancela en transacción;<BR/>1 vigente por sesión</FONT>>, fontcolor="white"];
+  reas [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Motor de reasignación</B><BR/><FONT POINT-SIZE="9">[Componente · modules/retentions/reassignment.service]</FONT><BR/><BR/><FONT POINT-SIZE="10">Busca la zona más cercana con cupo<BR/>(mismo piso → pisos vecinos)</FONT>>, fontcolor="white"];
+  exp [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Planificador de expiraciones</B><BR/><FONT POINT-SIZE="9">[Componente · modules/retentions/expiration.scheduler]</FONT><BR/><BR/><FONT POINT-SIZE="10">Cada 15 s marca EXPIRADAS<BR/>las retenciones vencidas</FONT>>, fontcolor="white"];
+  adap [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Adaptador de eventos</B><BR/><FONT POINT-SIZE="9">[Componente · modules/events/event.adapter]</FONT><BR/><BR/><FONT POINT-SIZE="10">Contrato FuenteOcupacion:<BR/>normaliza el mensaje de la fuente</FONT>>, fontcolor="white"];
+  proc [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Procesador de eventos</B><BR/><FONT POINT-SIZE="9">[Componente · modules/events/events.service]</FONT><BR/><BR/><FONT POINT-SIZE="10">Idempotencia, descarte de tardíos,<BR/>actualiza ocupación y detecta conflictos</FONT>>, fontcolor="white"];
+  ubi [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Ubicación del vehículo</B><BR/><FONT POINT-SIZE="9">[Componente · modules/locations]</FONT><BR/><BR/><FONT POINT-SIZE="10">Guarda y recupera zona<BR/>y referencia por sesión</FONT>>, fontcolor="white"];
+  sse [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Notificador en tiempo real</B><BR/><FONT POINT-SIZE="9">[Componente · shared/realtime.ts]</FONT><BR/><BR/><FONT POINT-SIZE="10">Server-Sent Events: 'zonas'<BR/>y 'retencion' por sesión</FONT>>, fontcolor="white"];
+  repo [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Acceso a datos</B><BR/><FONT POINT-SIZE="9">[Componente · db/pool.ts + *.repository.ts]</FONT><BR/><BR/><FONT POINT-SIZE="10">SQL parametrizado, withTransaction<BR/>con reintento ante deadlock</FONT>>, fontcolor="white"];
+}
+pwa -> http [label="  REST + SSE"];
+sim -> http [label="  POST /api/simulator/events"];
+http -> ses; http -> disp; http -> ret; http -> ubi; http -> adap [label=" evento crudo"];
+adap -> proc [label=" evento normalizado"];
+proc -> reas [label=" conflicto"];
+reas -> disp [label=" alternativas"];
+ret -> disp [label=" bloquear zona / cupo"];
+ret -> sse; proc -> sse; exp -> sse;
+sse -> pwa [style=dashed, label="  eventos SSE"];
+ses -> repo; disp -> repo; ret -> repo; reas -> repo; exp -> repo; proc -> repo; ubi -> repo;
+repo -> db [label="  SQL"];
+{rank=same; pwa; sim}
+}

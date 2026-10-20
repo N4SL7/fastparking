@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Def_FastParking" targetNamespace="https://fastparking.local/bpmn" exporter="FastParking generador" exporterVersion="1.0">
+<bpmn:message id="Msg_QR" name="QR escaneado" /><bpmn:message id="Msg_Cancel" name="Cancelación" /><bpmn:message id="Msg_Ocup" name="Evento de ocupación" />
+<bpmn:collaboration id="Collab_Retencion">
+<bpmn:participant id="P_Conductor" name="Conductor (visitante)" />
+<bpmn:participant id="P_FastParking" name="FastParking" processRef="Proc_Retencion" />
+<bpmn:participant id="P_Simulador" name="Simulador de eventos de ocupación (fuente SIMULADOR)" />
+<bpmn:messageFlow id="M_QR" name="escanea QR" sourceRef="P_Conductor" targetRef="S_QR" />
+<bpmn:messageFlow id="M_Zonas" name="zonas y estado" sourceRef="T_Zonas" targetRef="P_Conductor" />
+<bpmn:messageFlow id="M_Eleccion" name="zona elegida" sourceRef="P_Conductor" targetRef="T_Solicitar" />
+<bpmn:messageFlow id="M_Retencion" name="retención y aviso" sourceRef="T_Mostrar" targetRef="P_Conductor" />
+<bpmn:messageFlow id="M_Cancel" name="cancelar" sourceRef="P_Conductor" targetRef="C_Cancel" />
+<bpmn:messageFlow id="M_Reasig" name="nueva zona" sourceRef="T_NotifReasig" targetRef="P_Conductor" />
+<bpmn:messageFlow id="M_Ocup" name="ENTRADA / SALIDA" sourceRef="P_Simulador" targetRef="C_Ocup" />
+</bpmn:collaboration>
+<bpmn:process id="Proc_Retencion" name="Solicitud de retención temporal simulada y resolución de conflictos" isExecutable="false">
+<bpmn:laneSet id="LaneSet_1">
+<bpmn:lane id="L_PWA" name="PWA (navegador móvil)"><bpmn:flowNodeRef>S_QR</bpmn:flowNodeRef><bpmn:flowNodeRef>T_Sesion</bpmn:flowNodeRef><bpmn:flowNodeRef>T_Zonas</bpmn:flowNodeRef><bpmn:flowNodeRef>T_Solicitar</bpmn:flowNodeRef><bpmn:flowNodeRef>T_Alternativas</bpmn:flowNodeRef><bpmn:flowNodeRef>T_Mostrar</bpmn:flowNodeRef><bpmn:flowNodeRef>T_NotifReasig</bpmn:flowNodeRef></bpmn:lane>
+<bpmn:lane id="L_API" name="API y dominio (Node.js + PostgreSQL)"><bpmn:flowNodeRef>T_Bloquear</bpmn:flowNodeRef><bpmn:flowNodeRef>G_Cupo</bpmn:flowNodeRef><bpmn:flowNodeRef>T_Crear</bpmn:flowNodeRef><bpmn:flowNodeRef>G_Espera</bpmn:flowNodeRef><bpmn:flowNodeRef>C_Cancel</bpmn:flowNodeRef><bpmn:flowNodeRef>C_Timer</bpmn:flowNodeRef><bpmn:flowNodeRef>C_Ocup</bpmn:flowNodeRef><bpmn:flowNodeRef>T_Cancelar</bpmn:flowNodeRef><bpmn:flowNodeRef>E_Cancel</bpmn:flowNodeRef><bpmn:flowNodeRef>T_Expirar</bpmn:flowNodeRef><bpmn:flowNodeRef>E_Expira</bpmn:flowNodeRef><bpmn:flowNodeRef>T_Evento</bpmn:flowNodeRef><bpmn:flowNodeRef>G_Conflicto</bpmn:flowNodeRef><bpmn:flowNodeRef>E_SinConf</bpmn:flowNodeRef><bpmn:flowNodeRef>T_Buscar</bpmn:flowNodeRef><bpmn:flowNodeRef>G_Alt</bpmn:flowNodeRef><bpmn:flowNodeRef>T_Reasignar</bpmn:flowNodeRef><bpmn:flowNodeRef>T_Invalidar</bpmn:flowNodeRef><bpmn:flowNodeRef>E_Invalida</bpmn:flowNodeRef></bpmn:lane>
+</bpmn:laneSet>
+<bpmn:startEvent id="S_QR" name="QR del tiquete escaneado"><bpmn:outgoing>F_S_QR_T_Sesion</bpmn:outgoing><bpmn:messageEventDefinition id="MED_S_QR" messageRef="Msg_QR" /></bpmn:startEvent>
+<bpmn:task id="T_Sesion" name="Abrir sesión anónima"><bpmn:incoming>F_S_QR_T_Sesion</bpmn:incoming><bpmn:outgoing>F_T_Sesion_T_Zonas</bpmn:outgoing></bpmn:task>
+<bpmn:task id="T_Zonas" name="Mostrar zonas por piso con hora de actualización"><bpmn:incoming>F_T_Sesion_T_Zonas</bpmn:incoming><bpmn:outgoing>F_T_Zonas_T_Solicitar</bpmn:outgoing></bpmn:task>
+<bpmn:task id="T_Solicitar" name="Enviar solicitud de retención"><bpmn:incoming>F_T_Zonas_T_Solicitar</bpmn:incoming><bpmn:incoming>F_T_Alternativas_T_Solicitar</bpmn:incoming><bpmn:outgoing>F_T_Solicitar_T_Bloquear</bpmn:outgoing></bpmn:task>
+<bpmn:task id="T_Alternativas" name="Mostrar alternativas cercanas"><bpmn:incoming>F_G_Cupo_T_Alternativas</bpmn:incoming><bpmn:outgoing>F_T_Alternativas_T_Solicitar</bpmn:outgoing></bpmn:task>
+<bpmn:task id="T_Mostrar" name="Mostrar retención y cuenta regresiva"><bpmn:incoming>F_T_Crear_T_Mostrar</bpmn:incoming><bpmn:incoming>F_T_NotifReasig_T_Mostrar</bpmn:incoming><bpmn:outgoing>F_T_Mostrar_G_Espera</bpmn:outgoing></bpmn:task>
+<bpmn:task id="T_NotifReasig" name="Notificar reasignación (SSE)"><bpmn:incoming>F_T_Reasignar_T_NotifReasig</bpmn:incoming><bpmn:outgoing>F_T_NotifReasig_T_Mostrar</bpmn:outgoing></bpmn:task>
+<bpmn:task id="T_Bloquear" name="Bloquear zona y calcular cupo lógico"><bpmn:incoming>F_T_Solicitar_T_Bloquear</bpmn:incoming><bpmn:outgoing>F_T_Bloquear_G_Cupo</bpmn:outgoing></bpmn:task>
+<bpmn:exclusiveGateway id="G_Cupo" name="¿Cupo lógico &gt; 0 y sin retención vigente?"><bpmn:incoming>F_T_Bloquear_G_Cupo</bpmn:incoming><bpmn:outgoing>F_G_Cupo_T_Alternativas</bpmn:outgoing><bpmn:outgoing>F_G_Cupo_T_Crear</bpmn:outgoing></bpmn:exclusiveGateway>
+<bpmn:task id="T_Crear" name="Crear retención VIGENTE (10 min) y registrar historial"><bpmn:incoming>F_G_Cupo_T_Crear</bpmn:incoming><bpmn:outgoing>F_T_Crear_T_Mostrar</bpmn:outgoing></bpmn:task>
+<bpmn:eventBasedGateway id="G_Espera" name=""><bpmn:incoming>F_T_Mostrar_G_Espera</bpmn:incoming><bpmn:outgoing>F_G_Espera_C_Cancel</bpmn:outgoing><bpmn:outgoing>F_G_Espera_C_Timer</bpmn:outgoing><bpmn:outgoing>F_G_Espera_C_Ocup</bpmn:outgoing></bpmn:eventBasedGateway>
+<bpmn:intermediateCatchEvent id="C_Cancel" name="Cancelación solicitada"><bpmn:incoming>F_G_Espera_C_Cancel</bpmn:incoming><bpmn:outgoing>F_C_Cancel_T_Cancelar</bpmn:outgoing><bpmn:messageEventDefinition id="MED_C_Cancel" messageRef="Msg_Cancel" /></bpmn:intermediateCatchEvent>
+<bpmn:intermediateCatchEvent id="C_Timer" name="Vence a los 10 min"><bpmn:incoming>F_G_Espera_C_Timer</bpmn:incoming><bpmn:outgoing>F_C_Timer_T_Expirar</bpmn:outgoing><bpmn:timerEventDefinition id="TED_C_Timer"><bpmn:timeDuration>PT10M</bpmn:timeDuration></bpmn:timerEventDefinition></bpmn:intermediateCatchEvent>
+<bpmn:intermediateCatchEvent id="C_Ocup" name="Evento de ocupación recibido"><bpmn:incoming>F_G_Espera_C_Ocup</bpmn:incoming><bpmn:outgoing>F_C_Ocup_T_Evento</bpmn:outgoing><bpmn:messageEventDefinition id="MED_C_Ocup" messageRef="Msg_Ocup" /></bpmn:intermediateCatchEvent>
+<bpmn:task id="T_Cancelar" name="Marcar CANCELADA y liberar cupo"><bpmn:incoming>F_C_Cancel_T_Cancelar</bpmn:incoming><bpmn:outgoing>F_T_Cancelar_E_Cancel</bpmn:outgoing></bpmn:task>
+<bpmn:endEvent id="E_Cancel" name="Retención cancelada"><bpmn:incoming>F_T_Cancelar_E_Cancel</bpmn:incoming></bpmn:endEvent>
+<bpmn:task id="T_Expirar" name="Marcar EXPIRADA"><bpmn:incoming>F_C_Timer_T_Expirar</bpmn:incoming><bpmn:outgoing>F_T_Expirar_E_Expira</bpmn:outgoing></bpmn:task>
+<bpmn:endEvent id="E_Expira" name="Retención expirada"><bpmn:incoming>F_T_Expirar_E_Expira</bpmn:incoming></bpmn:endEvent>
+<bpmn:task id="T_Evento" name="Validar evento (duplicado / tardío) y actualizar ocupación"><bpmn:incoming>F_C_Ocup_T_Evento</bpmn:incoming><bpmn:outgoing>F_T_Evento_G_Conflicto</bpmn:outgoing></bpmn:task>
+<bpmn:exclusiveGateway id="G_Conflicto" name="¿Ocupados + retenidas &gt; capacidad?"><bpmn:incoming>F_T_Evento_G_Conflicto</bpmn:incoming><bpmn:outgoing>F_G_Conflicto_E_SinConf</bpmn:outgoing><bpmn:outgoing>F_G_Conflicto_T_Buscar</bpmn:outgoing></bpmn:exclusiveGateway>
+<bpmn:endEvent id="E_SinConf" name="Retención sigue vigente"><bpmn:incoming>F_G_Conflicto_E_SinConf</bpmn:incoming></bpmn:endEvent>
+<bpmn:task id="T_Buscar" name="Buscar zona más cercana con cupo"><bpmn:incoming>F_G_Conflicto_T_Buscar</bpmn:incoming><bpmn:outgoing>F_T_Buscar_G_Alt</bpmn:outgoing></bpmn:task>
+<bpmn:exclusiveGateway id="G_Alt" name="¿Hay alternativa?"><bpmn:incoming>F_T_Buscar_G_Alt</bpmn:incoming><bpmn:outgoing>F_G_Alt_T_Reasignar</bpmn:outgoing><bpmn:outgoing>F_G_Alt_T_Invalidar</bpmn:outgoing></bpmn:exclusiveGateway>
+<bpmn:task id="T_Reasignar" name="Marcar REASIGNADA y crear nueva VIGENTE"><bpmn:incoming>F_G_Alt_T_Reasignar</bpmn:incoming><bpmn:outgoing>F_T_Reasignar_T_NotifReasig</bpmn:outgoing></bpmn:task>
+<bpmn:task id="T_Invalidar" name="Marcar INVALIDADA y notificar (SSE)"><bpmn:incoming>F_G_Alt_T_Invalidar</bpmn:incoming><bpmn:outgoing>F_T_Invalidar_E_Invalida</bpmn:outgoing></bpmn:task>
+<bpmn:endEvent id="E_Invalida" name="Retención invalidada"><bpmn:incoming>F_T_Invalidar_E_Invalida</bpmn:incoming></bpmn:endEvent>
+<bpmn:sequenceFlow id="F_S_QR_T_Sesion" name="" sourceRef="S_QR" targetRef="T_Sesion" />
+<bpmn:sequenceFlow id="F_T_Sesion_T_Zonas" name="" sourceRef="T_Sesion" targetRef="T_Zonas" />
+<bpmn:sequenceFlow id="F_T_Zonas_T_Solicitar" name="" sourceRef="T_Zonas" targetRef="T_Solicitar" />
+<bpmn:sequenceFlow id="F_T_Solicitar_T_Bloquear" name="" sourceRef="T_Solicitar" targetRef="T_Bloquear" />
+<bpmn:sequenceFlow id="F_T_Bloquear_G_Cupo" name="" sourceRef="T_Bloquear" targetRef="G_Cupo" />
+<bpmn:sequenceFlow id="F_G_Cupo_T_Alternativas" name="No" sourceRef="G_Cupo" targetRef="T_Alternativas" />
+<bpmn:sequenceFlow id="F_T_Alternativas_T_Solicitar" name="elige otra zona" sourceRef="T_Alternativas" targetRef="T_Solicitar" />
+<bpmn:sequenceFlow id="F_G_Cupo_T_Crear" name="Sí" sourceRef="G_Cupo" targetRef="T_Crear" />
+<bpmn:sequenceFlow id="F_T_Crear_T_Mostrar" name="" sourceRef="T_Crear" targetRef="T_Mostrar" />
+<bpmn:sequenceFlow id="F_T_Mostrar_G_Espera" name="" sourceRef="T_Mostrar" targetRef="G_Espera" />
+<bpmn:sequenceFlow id="F_G_Espera_C_Cancel" name="" sourceRef="G_Espera" targetRef="C_Cancel" />
+<bpmn:sequenceFlow id="F_G_Espera_C_Timer" name="" sourceRef="G_Espera" targetRef="C_Timer" />
+<bpmn:sequenceFlow id="F_G_Espera_C_Ocup" name="" sourceRef="G_Espera" targetRef="C_Ocup" />
+<bpmn:sequenceFlow id="F_C_Cancel_T_Cancelar" name="" sourceRef="C_Cancel" targetRef="T_Cancelar" />
+<bpmn:sequenceFlow id="F_T_Cancelar_E_Cancel" name="" sourceRef="T_Cancelar" targetRef="E_Cancel" />
+<bpmn:sequenceFlow id="F_C_Timer_T_Expirar" name="" sourceRef="C_Timer" targetRef="T_Expirar" />
+<bpmn:sequenceFlow id="F_T_Expirar_E_Expira" name="" sourceRef="T_Expirar" targetRef="E_Expira" />
+<bpmn:sequenceFlow id="F_C_Ocup_T_Evento" name="" sourceRef="C_Ocup" targetRef="T_Evento" />
+<bpmn:sequenceFlow id="F_T_Evento_G_Conflicto" name="" sourceRef="T_Evento" targetRef="G_Conflicto" />
+<bpmn:sequenceFlow id="F_G_Conflicto_E_SinConf" name="No" sourceRef="G_Conflicto" targetRef="E_SinConf" />
+<bpmn:sequenceFlow id="F_G_Conflicto_T_Buscar" name="Sí" sourceRef="G_Conflicto" targetRef="T_Buscar" />
+<bpmn:sequenceFlow id="F_T_Buscar_G_Alt" name="" sourceRef="T_Buscar" targetRef="G_Alt" />
+<bpmn:sequenceFlow id="F_G_Alt_T_Reasignar" name="Sí" sourceRef="G_Alt" targetRef="T_Reasignar" />
+<bpmn:sequenceFlow id="F_G_Alt_T_Invalidar" name="No" sourceRef="G_Alt" targetRef="T_Invalidar" />
+<bpmn:sequenceFlow id="F_T_Invalidar_E_Invalida" name="" sourceRef="T_Invalidar" targetRef="E_Invalida" />
+<bpmn:sequenceFlow id="F_T_Reasignar_T_NotifReasig" name="" sourceRef="T_Reasignar" targetRef="T_NotifReasig" />
+<bpmn:sequenceFlow id="F_T_NotifReasig_T_Mostrar" name="nueva retención vigente" sourceRef="T_NotifReasig" targetRef="T_Mostrar" />
+</bpmn:process>
+<bpmndi:BPMNDiagram id="Diag_1"><bpmndi:BPMNPlane id="Plane_1" bpmnElement="Collab_Retencion">
+<bpmndi:BPMNShape id="P_Conductor_di" bpmnElement="P_Conductor" isHorizontal="true"><dc:Bounds x="40" y="20" width="2000" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="P_FastParking_di" bpmnElement="P_FastParking" isHorizontal="true"><dc:Bounds x="40" y="120" width="2000" height="700" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="P_Simulador_di" bpmnElement="P_Simulador" isHorizontal="true"><dc:Bounds x="40" y="850" width="2000" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="L_PWA_di" bpmnElement="L_PWA" isHorizontal="true"><dc:Bounds x="70" y="120" width="1970" height="230" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="L_API_di" bpmnElement="L_API" isHorizontal="true"><dc:Bounds x="70" y="350" width="1970" height="470" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="S_QR_di" bpmnElement="S_QR"><dc:Bounds x="127" y="217" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="97" y="257" width="96" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Sesion_di" bpmnElement="T_Sesion"><dc:Bounds x="197" y="200" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Zonas_di" bpmnElement="T_Zonas"><dc:Bounds x="335" y="200" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Solicitar_di" bpmnElement="T_Solicitar"><dc:Bounds x="495" y="200" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Alternativas_di" bpmnElement="T_Alternativas"><dc:Bounds x="695" y="200" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Mostrar_di" bpmnElement="T_Mostrar"><dc:Bounds x="945" y="200" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_NotifReasig_di" bpmnElement="T_NotifReasig"><dc:Bounds x="1815" y="200" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Bloquear_di" bpmnElement="T_Bloquear"><dc:Bounds x="495" y="385" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="G_Cupo_di" bpmnElement="G_Cupo" isMarkerVisible="true"><dc:Bounds x="735" y="395" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="705" y="449" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Crear_di" bpmnElement="T_Crear"><dc:Bounds x="835" y="385" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="G_Espera_di" bpmnElement="G_Espera"><dc:Bounds x="1105" y="395" width="50" height="50" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="C_Cancel_di" bpmnElement="C_Cancel"><dc:Bounds x="1232" y="402" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1202" y="442" width="96" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="C_Timer_di" bpmnElement="C_Timer"><dc:Bounds x="1232" y="522" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1202" y="562" width="96" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="C_Ocup_di" bpmnElement="C_Ocup"><dc:Bounds x="1232" y="642" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1202" y="682" width="96" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Cancelar_di" bpmnElement="T_Cancelar"><dc:Bounds x="1335" y="385" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="E_Cancel_di" bpmnElement="E_Cancel"><dc:Bounds x="1522" y="402" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1492" y="442" width="96" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Expirar_di" bpmnElement="T_Expirar"><dc:Bounds x="1335" y="505" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="E_Expira_di" bpmnElement="E_Expira"><dc:Bounds x="1522" y="522" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1492" y="562" width="96" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Evento_di" bpmnElement="T_Evento"><dc:Bounds x="1335" y="625" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="G_Conflicto_di" bpmnElement="G_Conflicto" isMarkerVisible="true"><dc:Bounds x="1525" y="635" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1495" y="689" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="E_SinConf_di" bpmnElement="E_SinConf"><dc:Bounds x="1532" y="752" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1502" y="792" width="96" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Buscar_di" bpmnElement="T_Buscar"><dc:Bounds x="1625" y="625" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="G_Alt_di" bpmnElement="G_Alt" isMarkerVisible="true"><dc:Bounds x="1855" y="635" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1825" y="689" width="110" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Reasignar_di" bpmnElement="T_Reasignar"><dc:Bounds x="1815" y="385" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="T_Invalidar_di" bpmnElement="T_Invalidar"><dc:Bounds x="1815" y="735" width="130" height="70" /></bpmndi:BPMNShape>
+<bpmndi:BPMNShape id="E_Invalida_di" bpmnElement="E_Invalida"><dc:Bounds x="1992" y="752" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1962" y="792" width="96" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+<bpmndi:BPMNEdge id="F_S_QR_T_Sesion_di" bpmnElement="F_S_QR_T_Sesion"><di:waypoint x="163" y="235" /><di:waypoint x="197" y="235" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Sesion_T_Zonas_di" bpmnElement="F_T_Sesion_T_Zonas"><di:waypoint x="327" y="235" /><di:waypoint x="335" y="235" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Zonas_T_Solicitar_di" bpmnElement="F_T_Zonas_T_Solicitar"><di:waypoint x="465" y="235" /><di:waypoint x="495" y="235" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Solicitar_T_Bloquear_di" bpmnElement="F_T_Solicitar_T_Bloquear"><di:waypoint x="560" y="270" /><di:waypoint x="560" y="385" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Bloquear_G_Cupo_di" bpmnElement="F_T_Bloquear_G_Cupo"><di:waypoint x="625" y="420" /><di:waypoint x="735" y="420" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_G_Cupo_T_Alternativas_di" bpmnElement="F_G_Cupo_T_Alternativas"><di:waypoint x="760" y="395" /><di:waypoint x="760" y="270" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Alternativas_T_Solicitar_di" bpmnElement="F_T_Alternativas_T_Solicitar"><di:waypoint x="760" y="200" /><di:waypoint x="760" y="150" /><di:waypoint x="560" y="150" /><di:waypoint x="560" y="200" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_G_Cupo_T_Crear_di" bpmnElement="F_G_Cupo_T_Crear"><di:waypoint x="785" y="420" /><di:waypoint x="835" y="420" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Crear_T_Mostrar_di" bpmnElement="F_T_Crear_T_Mostrar"><di:waypoint x="965" y="420" /><di:waypoint x="1010" y="420" /><di:waypoint x="1010" y="270" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Mostrar_G_Espera_di" bpmnElement="F_T_Mostrar_G_Espera"><di:waypoint x="1075" y="235" /><di:waypoint x="1130" y="235" /><di:waypoint x="1130" y="395" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_G_Espera_C_Cancel_di" bpmnElement="F_G_Espera_C_Cancel"><di:waypoint x="1155" y="420" /><di:waypoint x="1232" y="420" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_G_Espera_C_Timer_di" bpmnElement="F_G_Espera_C_Timer"><di:waypoint x="1130" y="445" /><di:waypoint x="1130" y="540" /><di:waypoint x="1232" y="540" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_G_Espera_C_Ocup_di" bpmnElement="F_G_Espera_C_Ocup"><di:waypoint x="1130" y="540" /><di:waypoint x="1130" y="660" /><di:waypoint x="1232" y="660" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_C_Cancel_T_Cancelar_di" bpmnElement="F_C_Cancel_T_Cancelar"><di:waypoint x="1268" y="420" /><di:waypoint x="1335" y="420" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Cancelar_E_Cancel_di" bpmnElement="F_T_Cancelar_E_Cancel"><di:waypoint x="1465" y="420" /><di:waypoint x="1522" y="420" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_C_Timer_T_Expirar_di" bpmnElement="F_C_Timer_T_Expirar"><di:waypoint x="1268" y="540" /><di:waypoint x="1335" y="540" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Expirar_E_Expira_di" bpmnElement="F_T_Expirar_E_Expira"><di:waypoint x="1465" y="540" /><di:waypoint x="1522" y="540" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_C_Ocup_T_Evento_di" bpmnElement="F_C_Ocup_T_Evento"><di:waypoint x="1268" y="660" /><di:waypoint x="1335" y="660" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Evento_G_Conflicto_di" bpmnElement="F_T_Evento_G_Conflicto"><di:waypoint x="1465" y="660" /><di:waypoint x="1525" y="660" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_G_Conflicto_E_SinConf_di" bpmnElement="F_G_Conflicto_E_SinConf"><di:waypoint x="1550" y="685" /><di:waypoint x="1550" y="752" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_G_Conflicto_T_Buscar_di" bpmnElement="F_G_Conflicto_T_Buscar"><di:waypoint x="1575" y="660" /><di:waypoint x="1625" y="660" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Buscar_G_Alt_di" bpmnElement="F_T_Buscar_G_Alt"><di:waypoint x="1755" y="660" /><di:waypoint x="1855" y="660" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_G_Alt_T_Reasignar_di" bpmnElement="F_G_Alt_T_Reasignar"><di:waypoint x="1880" y="635" /><di:waypoint x="1880" y="455" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_G_Alt_T_Invalidar_di" bpmnElement="F_G_Alt_T_Invalidar"><di:waypoint x="1880" y="685" /><di:waypoint x="1880" y="735" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Invalidar_E_Invalida_di" bpmnElement="F_T_Invalidar_E_Invalida"><di:waypoint x="1945" y="770" /><di:waypoint x="1992" y="770" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_Reasignar_T_NotifReasig_di" bpmnElement="F_T_Reasignar_T_NotifReasig"><di:waypoint x="1880" y="385" /><di:waypoint x="1880" y="270" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="F_T_NotifReasig_T_Mostrar_di" bpmnElement="F_T_NotifReasig_T_Mostrar"><di:waypoint x="1880" y="200" /><di:waypoint x="1880" y="150" /><di:waypoint x="1010" y="150" /><di:waypoint x="1010" y="200" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="M_QR_di" bpmnElement="M_QR"><di:waypoint x="145" y="90" /><di:waypoint x="145" y="217" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="M_Zonas_di" bpmnElement="M_Zonas"><di:waypoint x="400" y="200" /><di:waypoint x="400" y="90" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="M_Eleccion_di" bpmnElement="M_Eleccion"><di:waypoint x="590" y="90" /><di:waypoint x="590" y="200" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="M_Retencion_di" bpmnElement="M_Retencion"><di:waypoint x="1050" y="200" /><di:waypoint x="1050" y="90" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="M_Cancel_di" bpmnElement="M_Cancel"><di:waypoint x="1250" y="90" /><di:waypoint x="1250" y="402" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="M_Reasig_di" bpmnElement="M_Reasig"><di:waypoint x="1910" y="200" /><di:waypoint x="1910" y="90" /></bpmndi:BPMNEdge>
+<bpmndi:BPMNEdge id="M_Ocup_di" bpmnElement="M_Ocup"><di:waypoint x="1250" y="850" /><di:waypoint x="1250" y="678" /></bpmndi:BPMNEdge>
+</bpmndi:BPMNPlane></bpmndi:BPMNDiagram></bpmn:definitions>

@@ -1,0 +1,16 @@
+digraph C4_1 { graph [fontname="Segoe UI,Arial,Helvetica,sans-serif", pad=0.4, nodesep=0.9, ranksep=1.0, bgcolor="white", labelloc=t, fontsize=16, fontcolor="#083E4D"];
+node [fontname="Segoe UI,Arial,Helvetica,sans-serif", fontsize=11, margin="0.25,0.15", width=2.6];
+edge [fontname="Segoe UI,Arial,Helvetica,sans-serif", fontsize=9.5, color="#4b6169", fontcolor="#33474e", arrowsize=0.8];
+graph [label="C4 · Nivel 1 — Contexto del sistema FastParking"];
+conductor [shape=box, style="rounded,filled", fillcolor="#052c37", color="#052c37", fontcolor="white", label=<<FONT POINT-SIZE="20">👤</FONT><BR/><B>Conductor / visitante</B><BR/><FONT POINT-SIZE="9">[Persona]</FONT><BR/><FONT POINT-SIZE="10">Escanea el QR del tiquete, consulta zonas,<BR/>retiene una zona y guarda dónde parqueó</FONT>>];
+operador [shape=box, style="rounded,filled", fillcolor="#052c37", color="#052c37", fontcolor="white", label=<<FONT POINT-SIZE="20">👤</FONT><BR/><B>Operador de pruebas</B><BR/><FONT POINT-SIZE="9">[Persona]</FONT><BR/><FONT POINT-SIZE="10">Ejecuta escenarios de ocupación<BR/>simulados durante la demostración</FONT>>];
+fp [shape=box, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>FastParking</B><BR/><FONT POINT-SIZE="9">[Sistema de software]</FONT><BR/><BR/><FONT POINT-SIZE="10">PWA + API: disponibilidad por zona,<BR/>retenciones temporales simuladas,<BR/>reasignación automática y ubicación del vehículo</FONT>>, fontcolor="white"];
+sens [shape=box, style="rounded,filled,dashed", fillcolor="#9aa8ad", color="#10242a", label=<<B>Sensores / controlador del parqueadero</B><BR/><FONT POINT-SIZE="9">[Sistema externo — FUTURO]</FONT><BR/><BR/><FONT POINT-SIZE="10">Indicadores de cupos por piso de Parque La Colina.<BR/>Sin fabricante, API ni autorización: NO integrado</FONT>>, fontcolor="white"];
+cc [shape=box, style="rounded,filled,dashed", fillcolor="#9aa8ad", color="#10242a", label=<<B>Sistema de tiquetes y pago del centro comercial</B><BR/><FONT POINT-SIZE="9">[Sistema externo — FUERA DE ALCANCE]</FONT><BR/><BR/><FONT POINT-SIZE="10">Tiquete físico, talanqueras y pago tradicional.<BR/>FastParking lo complementa, no lo reemplaza</FONT>>, fontcolor="white"];
+conductor -> fp [label="  Usa desde el navegador móvil\n  (QR → HTTPS)"];
+operador -> fp [label="  Inyecta eventos de ocupación\n  simulados (clave del simulador)"];
+sens -> fp [style=dashed, label="  (futuro) eventos de ocupación\n  vía adaptador"];
+cc -> conductor [style=dashed, label="  entrega el tiquete físico\n  (con QR, propuesto)"];
+{rank=same; conductor; operador}
+{rank=same; sens; cc}
+}
