@@ -46,6 +46,8 @@ export const api = {
   retencionActual: () => pedir<{ retencion: Retencion | null }>('/api/retentions/current'),
   retener: (idZona: number) => pedir<Retencion>('/api/retentions', { method: 'POST', body: JSON.stringify({ idZona }) }),
   cancelar: (idRetencion: string) => pedir<Retencion>(`/api/retentions/${idRetencion}/cancel`, { method: 'POST' }),
+  llegar: (idRetencion: string, puesto?: number) =>
+    pedir<Retencion>(`/api/retentions/${idRetencion}/arrive`, { method: 'POST', body: JSON.stringify({ puesto }) }),
   ubicacion: () => pedir<{ ubicacion: Ubicacion | null }>('/api/vehicle-location'),
   guardarUbicacion: (idZona: number, referencia: string) =>
     pedir<{ ubicacion: Ubicacion }>('/api/vehicle-location', {

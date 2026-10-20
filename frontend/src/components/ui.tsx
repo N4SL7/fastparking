@@ -1,13 +1,20 @@
 import type { EstadoZona } from '../types';
 
-export function Encabezado() {
+export function Encabezado({ tiquete }: { tiquete?: string }) {
   return (
     <header className="encabezado">
-      <img src="/icon.svg" alt="" className="encabezado__logo" width={36} height={36} />
-      <div>
-        <h1 className="encabezado__titulo">FastParking</h1>
-        <p className="encabezado__sub">Parque La Colina · prototipo académico</p>
+      <div className="encabezado__marca">
+        <img src="/icon.svg" alt="" className="encabezado__logo" width={40} height={40} />
+        <div>
+          <h1 className="encabezado__titulo">FastParking</h1>
+          <p className="encabezado__sub">Parque La Colina · prototipo académico</p>
+        </div>
       </div>
+      {tiquete && (
+        <span className="chip chip--claro" title="Tiquete de esta sesión">
+          {tiquete}
+        </span>
+      )}
     </header>
   );
 }

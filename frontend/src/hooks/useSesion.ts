@@ -1,62 +1,97 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, fijarSesion } from '../api';
+import { nuevoTokenTiquete } from '../components/Tiquete';
 
-const CLAVE = 'fastparking.idSesion';
+const CLAVE_SESION = 'fastparking.idSesion';
+const CLAVE_TIQUETE = 'fastparking.tiquete';
 
-function leer(): string | null {
+interface TiqueteGuardado {
+  token: string;
+  ingreso: string;
+}
+
+function leer<T>(clave: string): T | null {
   try {
-    return localStorage.getItem(CLAVE);
+    const v = localStorage.getItem(clave);
+    return v ? (JSON.parse(v) as T) : null;
   } catch {
     return null;
   }
 }
-function guardar(id: string) {
+function guardar(clave: string, valor: unknown) {
   try {
-    localStorage.setItem(CLAVE, id);
+    if (valor === null) localStorage.removeItem(clave);
+    else localStorage.setItem(clave, JSON.stringify(valor));
   } catch {
-    /* modo privado: la sesión vive solo en memoria */
+    /* modo privado: solo en memoria */
   }
 }
 
 /**
- * RF-01 / D-02: abre la sesión anónima.
- * - Si la URL trae ?t=<token del QR del tiquete>, crea o reanuda la sesión de ese tiquete.
- * - Si no, reutiliza la sesión guardada o crea una de demostración.
+ * RF-01 / D-02: sesión anónima ligada al token del QR del tiquete.
+ * - URL con ?t=<token>: el conductor escaneó el QR → se crea o reanuda la sesión de ese tiquete.
+ * - Sin token: se muestra la simulación de la máquina de ingreso con un tiquete nuevo.
  */
 export function useSesion() {
   const [idSesion, setIdSesion] = useState<string | null>(null);
+  const [tiquete, setTiquete] = useState<TiqueteGuardado>(
+    () => leer<TiqueteGuardado>(CLAVE_TIQUETE) ?? { token: nuevoTokenTiquete(), ingreso: new Date().toISOString() },
+  );
+  const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const iniciar = useCallback(async (token: string, ingreso = new Date().toISOString()) => {
+    setError(null);
+    try {
+      const s = await api.crearSesion(token);
+      const t = { token, ingreso };
+      guardar(CLAVE_SESION, s.idSesion);
+      guardar(CLAVE_TIQUETE, t);
+      fijarSesion(s.idSesion);
+      setTiquete(t);
+      setIdSesion(s.idSesion);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, []);
 
   useEffect(() => {
     const url = new URL(window.location.href);
-    const tokenQr = url.searchParams.get('t') ?? undefined;
+    const tokenQr = url.searchParams.get('t');
     if (tokenQr) {
       url.searchParams.delete('t');
       window.history.replaceState(null, '', url.toString()); // el token no queda visible en la barra
     }
-    const guardada = leer();
-
     (async () => {
-      try {
-        if (!tokenQr && guardada) {
+      if (tokenQr) {
+        const previo = leer<TiqueteGuardado>(CLAVE_TIQUETE);
+        await iniciar(tokenQr, previo?.token === tokenQr ? previo.ingreso : undefined);
+      } else {
+        const guardada = leer<string>(CLAVE_SESION);
+        if (guardada) {
           fijarSesion(guardada);
           try {
             await api.retencionActual(); // valida que la sesión siga vigente
             setIdSesion(guardada);
-            return;
           } catch {
-            /* sesión vencida o inexistente: se crea una nueva */
+            fijarSesion(null);
+            guardar(CLAVE_SESION, null);
           }
         }
-        const s = await api.crearSesion(tokenQr);
-        guardar(s.idSesion);
-        fijarSesion(s.idSesion);
-        setIdSesion(s.idSesion);
-      } catch (e) {
-        setError((e as Error).message);
       }
+      setCargando(false);
     })();
+  }, [iniciar]);
+
+  /** Simula que llega otro vehículo: nuevo tiquete y nueva sesión. */
+  const nuevoIngreso = useCallback(() => {
+    guardar(CLAVE_SESION, null);
+    fijarSesion(null);
+    const t = { token: nuevoTokenTiquete(), ingreso: new Date().toISOString() };
+    guardar(CLAVE_TIQUETE, t);
+    setTiquete(t);
+    setIdSesion(null);
   }, []);
 
-  return { idSesion, error };
+  return { idSesion, tiquete, cargando, error, iniciar, nuevoIngreso };
 }

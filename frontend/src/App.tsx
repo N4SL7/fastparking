@@ -1,23 +1,36 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError } from './api';
 import { ListaZonas, PanelAlternativas, SelectorPiso } from './components/Disponibilidad';
-import { MiVehiculo, PlanoReferencia } from './components/MiVehiculo';
+import { IconoCarro, IconoInicio, IconoMapa, IconoTiquete } from './components/iconos';
+import { MapaSotano } from './components/MapaSotano';
+import { MiVehiculo } from './components/MiVehiculo';
 import { PanelRetencion } from './components/PanelRetencion';
+import { Tiquete } from './components/Tiquete';
 import { AvisoSimulacion, Encabezado, EstadoDatos, Notificaciones, type Aviso } from './components/ui';
 import { useSesion } from './hooks/useSesion';
 import { useTiempoReal } from './hooks/useTiempoReal';
-import type { Alternativa, CambioRetencion, Retencion, Zona } from './types';
+import type { Alternativa, CambioRetencion, Retencion, Ubicacion, Zona } from './types';
 
-type Pestana = 'zonas' | 'vehiculo';
+type Pestana = 'inicio' | 'mapa' | 'vehiculo' | 'tiquete';
+
+const PESTANAS: { id: Pestana; texto: string; icono: ReactNode }[] = [
+  { id: 'inicio', texto: 'Inicio', icono: <IconoInicio /> },
+  { id: 'mapa', texto: 'Mapa', icono: <IconoMapa /> },
+  { id: 'vehiculo', texto: 'Mi vehículo', icono: <IconoCarro /> },
+  { id: 'tiquete', texto: 'Tiquete', icono: <IconoTiquete /> },
+];
 
 export default function App() {
-  const { idSesion, error: errorSesion } = useSesion();
+  const sesion = useSesion();
+  const { idSesion } = sesion;
   const [retencion, setRetencion] = useState<Retencion | null>(null);
+  const [ubicacion, setUbicacion] = useState<Ubicacion | null>(null);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
-  const [pestana, setPestana] = useState<Pestana>('zonas');
+  const [pestana, setPestana] = useState<Pestana>('inicio');
   const [idPiso, setIdPiso] = useState<number | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [conflicto, setConflicto] = useState<{ zona: string; alternativas: Alternativa[] } | null>(null);
+  const [pedirNavegacion, setPedirNavegacion] = useState(false);
   const retencionRef = useRef<Retencion | null>(null);
   retencionRef.current = retencion;
 
@@ -27,7 +40,7 @@ export default function App() {
     setTimeout(() => setAvisos((a) => a.filter((x) => x.id !== id)), 5_000);
   }, []);
 
-  /** RF-06 / RF-15: cambios de la retención que llegan por SSE (reasignación, invalidación, expiración). */
+  /** RF-06 / RF-15: cambios de la retención recibidos por SSE. */
   const alCambiarRetencion = useCallback(
     (c: CambioRetencion) => {
       if (c.tipo === 'REASIGNADA' && c.retencion) {
@@ -37,13 +50,14 @@ export default function App() {
         setRetencion(null);
         avisar(`La zona ${c.anterior?.zonaCodigo} se ocupó y no hay otra zona con cupo. Tu retención fue invalidada.`, 'alerta');
       } else if (c.tipo === 'EXPIRADA') {
-        // Puede que el reloj local ya la haya retirado: se avisa una sola vez.
         if (retencionRef.current?.idRetencion === c.retencion?.idRetencion) {
           setRetencion(null);
-          avisar('Tu retención expiró: pasaron los 10 minutos.', 'info');
+          avisar('Tu retención expiró: pasaron los 7 minutos.', 'info');
         }
-      } else if (c.tipo === 'CREADA' || c.tipo === 'CANCELADA') {
-        setRetencion(c.tipo === 'CREADA' ? c.retencion : null);
+      } else if (c.tipo === 'CREADA') {
+        setRetencion(c.retencion);
+      } else {
+        setRetencion(null);
       }
     },
     [avisar],
@@ -53,18 +67,20 @@ export default function App() {
   const { datos, ahora } = tiempoReal;
 
   useEffect(() => {
-    if (!idSesion) return;
-    api
-      .retencionActual()
-      .then((r) => setRetencion(r.retencion))
-      .catch(() => undefined);
+    if (!idSesion) {
+      setRetencion(null);
+      setUbicacion(null);
+      return;
+    }
+    api.retencionActual().then((r) => setRetencion(r.retencion)).catch(() => undefined);
+    api.ubicacion().then((r) => setUbicacion(r.ubicacion)).catch(() => undefined);
   }, [idSesion]);
 
-  // Si el reloj pasa el vencimiento, la retención deja de mostrarse como vigente aunque no haya llegado el aviso (RF-05).
+  // RF-05: si el reloj local pasa el vencimiento, la retención deja de mostrarse como vigente.
   useEffect(() => {
     if (retencion && Date.parse(retencion.venceEn) <= ahora) {
       setRetencion(null);
-      avisar('Tu retención expiró: pasaron los 10 minutos.', 'info');
+      avisar('Tu retención expiró: pasaron los 7 minutos.', 'info');
     }
   }, [ahora, retencion, avisar]);
 
@@ -78,7 +94,7 @@ export default function App() {
       const r = await api.retener(idZona);
       setRetencion(r);
       setConflicto(null);
-      avisar(`Retención creada en ${r.zonaCodigo}. Tienes 10 minutos para llegar.`, 'exito');
+      avisar(`Retención creada en ${r.zonaCodigo}. Tienes 7 minutos para llegar.`, 'exito');
     } catch (e) {
       const err = e as ApiError;
       if (err.code === 'ZONA_SIN_CUPO') {
@@ -108,31 +124,93 @@ export default function App() {
     }
   }
 
-  if (errorSesion) {
+  /** RF-16: el conductor llegó al puesto (navegación simulada) y confirma que estacionó. */
+  async function llegar(puesto: number) {
+    if (!retencion) return;
+    setOcupado(true);
+    try {
+      await api.llegar(retencion.idRetencion, puesto);
+      setRetencion(null);
+      const u = await api.ubicacion();
+      setUbicacion(u.ubicacion);
+      avisar(`¡Listo! Estacionaste en ${u.ubicacion?.zonaCodigo} · Puesto ${String(puesto).padStart(2, '0')}. Guardamos tu ubicación.`, 'exito');
+      setPestana('vehiculo');
+    } catch (e) {
+      avisar((e as Error).message, 'alerta');
+    } finally {
+      setOcupado(false);
+      tiempoReal.recargar();
+    }
+  }
+
+  // ---------- Sin sesión: simulación de la máquina de ingreso (RF-01) ----------
+  if (!idSesion) {
     return (
-      <main className="contenedor">
+      <div className="app">
         <Encabezado />
-        <p className="frescura frescura--alerta" role="alert">
-          No pudimos iniciar tu sesión: {errorSesion}
-        </p>
-      </main>
+        <main className="contenedor">
+          {sesion.cargando ? (
+            <p className="texto-suave texto-centro">Cargando…</p>
+          ) : (
+            <Tiquete
+              token={sesion.tiquete.token}
+              horaIngreso={new Date(sesion.tiquete.ingreso)}
+              sesionActiva={false}
+              onEscanear={() => sesion.iniciar(sesion.tiquete.token, sesion.tiquete.ingreso)}
+              onNuevoTiquete={sesion.nuevoIngreso}
+            />
+          )}
+          {sesion.error && (
+            <p className="frescura frescura--alerta" role="alert">
+              No pudimos iniciar tu sesión: {sesion.error}
+            </p>
+          )}
+        </main>
+      </div>
     );
   }
 
   const piso = datos?.pisos.find((p) => p.idPiso === idPiso) ?? datos?.pisos[0];
-  const pisoRetencion = retencion ? datos?.pisos.find((p) => p.zonas.some((z) => z.idZona === retencion.idZona)) : undefined;
+  const todas = datos?.pisos.flatMap((p) => p.zonas) ?? [];
+  const libresTotal = todas.reduce((s, z) => s + z.cupoLogico, 0);
+  const llenas = todas.filter((z) => z.estado === 'LLENA').length;
 
   return (
-    <>
-      <Encabezado />
+    <div className="app">
+      <Encabezado tiquete={sesion.tiquete.token} />
       <main className="contenedor">
-        <AvisoSimulacion />
         <Notificaciones avisos={avisos} onCerrar={(id) => setAvisos((a) => a.filter((x) => x.id !== id))} />
 
-        {pestana === 'zonas' && (
+        {pestana === 'inicio' && (
           <>
-            {retencion && <PanelRetencion retencion={retencion} ahora={ahora} ocupado={ocupado} onCancelar={cancelar} />}
-            {retencion && pisoRetencion && <PlanoReferencia piso={pisoRetencion} idZonaResaltada={retencion.idZona} />}
+            <AvisoSimulacion />
+            <div className="estadisticas">
+              <div className="tarjeta estadistica">
+                <p className="etiqueta">Cupos libres ahora</p>
+                <p className="estadistica__valor">{libresTotal}</p>
+                <p className="texto-suave texto-chico">en {datos?.pisos.length ?? 0} sótanos</p>
+              </div>
+              <div className="tarjeta estadistica">
+                <p className="etiqueta">Zonas llenas</p>
+                <p className="estadistica__valor">
+                  {llenas}
+                  <span className="estadistica__de">/{todas.length}</span>
+                </p>
+                <p className="texto-suave texto-chico">datos simulados</p>
+              </div>
+            </div>
+            {retencion && (
+              <PanelRetencion
+                retencion={retencion}
+                ahora={ahora}
+                ocupado={ocupado}
+                onCancelar={cancelar}
+                onVerRuta={() => {
+                  setPedirNavegacion(true);
+                  setPestana('mapa');
+                }}
+              />
+            )}
             {conflicto && (
               <PanelAlternativas
                 zonaSolicitada={conflicto.zona}
@@ -154,27 +232,65 @@ export default function App() {
                 <ListaZonas piso={piso} retencion={retencion} ocupado={ocupado} onRetener={(z: Zona) => retener(z.idZona)} />
               </>
             ) : (
-              !tiempoReal.error && <p className="vacio">Cargando disponibilidad…</p>
+              !tiempoReal.error && <p className="texto-suave texto-centro">Cargando disponibilidad…</p>
             )}
           </>
         )}
 
-        {pestana === 'vehiculo' && datos && <MiVehiculo pisos={datos.pisos} onAviso={avisar} />}
+        {pestana === 'mapa' && datos && (
+          <>
+            {retencion && (
+              <p className="tarjeta franja-retencion">
+                Retención en <strong>{retencion.zonaCodigo}</strong> · vence en{' '}
+                {(() => {
+                  const s = Math.max(0, Math.floor((Date.parse(retencion.venceEn) - ahora) / 1000));
+                  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+                })()}
+              </p>
+            )}
+            <MapaSotano
+              pisos={datos.pisos}
+              retencion={retencion}
+              ubicacion={retencion ? null : ubicacion}
+              iniciarNavegacion={pedirNavegacion}
+              onNavegacionIniciada={() => setPedirNavegacion(false)}
+              onLlegar={llegar}
+              ocupado={ocupado}
+            />
+          </>
+        )}
+
+        {pestana === 'vehiculo' && datos && (
+          <MiVehiculo pisos={datos.pisos} ubicacion={ubicacion} onGuardada={setUbicacion} onAviso={avisar} />
+        )}
+
+        {pestana === 'tiquete' && (
+          <Tiquete
+            token={sesion.tiquete.token}
+            horaIngreso={new Date(sesion.tiquete.ingreso)}
+            sesionActiva
+            onEscanear={() => undefined}
+            onNuevoTiquete={sesion.nuevoIngreso}
+          />
+        )}
       </main>
 
-      <nav className="navegacion" aria-label="Secciones">
-        <button type="button" className={pestana === 'zonas' ? 'activa' : ''} aria-current={pestana === 'zonas'} onClick={() => setPestana('zonas')}>
-          <span aria-hidden="true">🅿</span> Disponibilidad
-        </button>
-        <button
-          type="button"
-          className={pestana === 'vehiculo' ? 'activa' : ''}
-          aria-current={pestana === 'vehiculo'}
-          onClick={() => setPestana('vehiculo')}
-        >
-          <span aria-hidden="true">🚗</span> Mi vehículo
-        </button>
+      <nav className="barra-nav" aria-label="Secciones">
+        {PESTANAS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={`barra-nav__boton ${pestana === p.id ? 'activa' : ''}`}
+            aria-current={pestana === p.id ? 'page' : undefined}
+            aria-label={p.texto}
+            title={p.texto}
+            onClick={() => setPestana(p.id)}
+          >
+            {p.icono}
+            <span className="barra-nav__texto">{p.texto}</span>
+          </button>
+        ))}
       </nav>
-    </>
+    </div>
   );
 }

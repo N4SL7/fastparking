@@ -1,6 +1,6 @@
 /** Contratos de la API (mismos nombres que el backend). */
 export type EstadoZona = 'DISPONIBLE' | 'POCOS_CUPOS' | 'LLENA';
-export type EstadoRetencion = 'VIGENTE' | 'CANCELADA' | 'EXPIRADA' | 'REASIGNADA' | 'INVALIDADA';
+export type EstadoRetencion = 'VIGENTE' | 'CANCELADA' | 'EXPIRADA' | 'REASIGNADA' | 'INVALIDADA' | 'UTILIZADA';
 
 export interface Zona {
   idZona: number;
@@ -53,6 +53,7 @@ export interface Ubicacion {
   zonaNombre: string;
   pisoCodigo: string;
   pisoNombre: string;
+  puesto: number | null;
   referencia: string | null;
   registradaEn: string;
 }
@@ -67,7 +68,7 @@ export interface Alternativa {
 
 /** Mensaje SSE "retencion" */
 export interface CambioRetencion {
-  tipo: 'CREADA' | 'CANCELADA' | 'EXPIRADA' | 'REASIGNADA' | 'INVALIDADA';
+  tipo: 'CREADA' | 'CANCELADA' | 'EXPIRADA' | 'REASIGNADA' | 'INVALIDADA' | 'UTILIZADA';
   retencion: Retencion | null;
   anterior?: Retencion | null;
 }

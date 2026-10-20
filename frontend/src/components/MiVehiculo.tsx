@@ -1,67 +1,25 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { api } from '../api';
 import type { Piso, Ubicacion } from '../types';
+import { IconoUbicacion } from './iconos';
+import { MapaSotano } from './MapaSotano';
 import { hora } from './ui';
 
-/** RF-10 / RN-09: plano ILUSTRATIVO de un piso; resalta una zona. No es localización en vivo. */
-export function PlanoReferencia({ piso, idZonaResaltada }: { piso: Piso; idZonaResaltada?: number }) {
-  const ancho = 320;
-  const columnas = 2;
-  const celdaW = (ancho - 48) / columnas;
-  const celdaH = 64;
-  const filas = Math.ceil(piso.zonas.length / columnas);
-  const alto = filas * (celdaH + 16) + 56;
-  return (
-    <figure className="plano">
-      <svg viewBox={`0 0 ${ancho} ${alto}`} role="img" aria-label={`Plano ilustrativo de ${piso.nombre}`}>
-        <rect x="1" y="1" width={ancho - 2} height={alto - 2} rx="12" className="plano__borde" />
-        <rect x={ancho / 2 - 18} y="8" width="36" height={alto - 16} rx="4" className="plano__via" />
-        <text x={ancho / 2} y={alto - 16} textAnchor="middle" className="plano__texto-via">
-          vía
-        </text>
-        {piso.zonas.map((z, i) => {
-          const col = i % columnas;
-          const fila = Math.floor(i / columnas);
-          const x = 16 + col * (celdaW + 16);
-          const y = 16 + fila * (celdaH + 16);
-          const activa = z.idZona === idZonaResaltada;
-          return (
-            <g key={z.idZona}>
-              <rect x={x} y={y} width={celdaW - 8} height={celdaH} rx="8" className={activa ? 'plano__zona plano__zona--activa' : 'plano__zona'} />
-              <text x={x + (celdaW - 8) / 2} y={y + 28} textAnchor="middle" className="plano__codigo">
-                {z.codigo}
-              </text>
-              <text x={x + (celdaW - 8) / 2} y={y + 48} textAnchor="middle" className="plano__nombre">
-                {activa ? '🚗 aquí' : z.nombre.replace(/^Zona \w — /, '')}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      <figcaption>Plano ilustrativo de referencia — no muestra tu posición en vivo.</figcaption>
-    </figure>
-  );
-}
-
-/** RF-09: guardar y consultar dónde quedó el vehículo. */
-export function MiVehiculo({ pisos, onAviso }: { pisos: Piso[]; onAviso: (texto: string, tipo?: 'exito' | 'alerta') => void }) {
-  const [ubicacion, setUbicacion] = useState<Ubicacion | null>(null);
-  const [idZona, setIdZona] = useState<number | ''>('');
-  const [referencia, setReferencia] = useState('');
+/** RF-09: dónde quedó el vehículo (automático al confirmar llegada o manual). */
+export function MiVehiculo({
+  pisos,
+  ubicacion,
+  onGuardada,
+  onAviso,
+}: {
+  pisos: Piso[];
+  ubicacion: Ubicacion | null;
+  onGuardada: (u: Ubicacion) => void;
+  onAviso: (texto: string, tipo?: 'exito' | 'alerta') => void;
+}) {
+  const [idZona, setIdZona] = useState<number | ''>(ubicacion?.idZona ?? '');
+  const [referencia, setReferencia] = useState(ubicacion?.referencia ?? '');
   const [guardando, setGuardando] = useState(false);
-
-  useEffect(() => {
-    api
-      .ubicacion()
-      .then((r) => {
-        setUbicacion(r.ubicacion);
-        if (r.ubicacion) {
-          setIdZona(r.ubicacion.idZona);
-          setReferencia(r.ubicacion.referencia ?? '');
-        }
-      })
-      .catch((e) => onAviso((e as Error).message, 'alerta'));
-  }, [onAviso]);
 
   async function guardar(ev: FormEvent) {
     ev.preventDefault();
@@ -69,7 +27,7 @@ export function MiVehiculo({ pisos, onAviso }: { pisos: Piso[]; onAviso: (texto:
     setGuardando(true);
     try {
       const r = await api.guardarUbicacion(idZona, referencia);
-      setUbicacion(r.ubicacion);
+      onGuardada(r.ubicacion);
       onAviso(`Ubicación guardada: ${r.ubicacion.zonaCodigo}, ${r.ubicacion.pisoNombre}.`, 'exito');
     } catch (e) {
       onAviso((e as Error).message, 'alerta');
@@ -78,26 +36,40 @@ export function MiVehiculo({ pisos, onAviso }: { pisos: Piso[]; onAviso: (texto:
     }
   }
 
-  const pisoGuardado = ubicacion ? pisos.find((p) => p.zonas.some((z) => z.idZona === ubicacion.idZona)) : undefined;
-
   return (
-    <div className="mi-vehiculo">
-      {ubicacion && pisoGuardado ? (
-        <section className="panel" aria-labelledby="titulo-ubicacion">
-          <p className="panel__etiqueta">Tu vehículo quedó en</p>
-          <h2 id="titulo-ubicacion" className="panel__titulo">
+    <div className="pila">
+      {ubicacion ? (
+        <section className="tarjeta tarjeta--marca" aria-labelledby="titulo-ubicacion">
+          <p className="etiqueta etiqueta--clara">
+            <IconoUbicacion size={16} /> Tu vehículo quedó en
+          </p>
+          <h2 id="titulo-ubicacion" className="titulo-grande">
             {ubicacion.pisoNombre} · {ubicacion.zonaCodigo}
+            {ubicacion.puesto ? ` · P${String(ubicacion.puesto).padStart(2, '0')}` : ''}
           </h2>
-          {ubicacion.referencia && <p className="panel__detalle">Referencia: {ubicacion.referencia}</p>}
-          <p className="panel__detalle">Guardado a las {hora(ubicacion.registradaEn)}</p>
-          <PlanoReferencia piso={pisoGuardado} idZonaResaltada={ubicacion.idZona} />
+          {ubicacion.referencia && <p className="texto-claro">Referencia: {ubicacion.referencia}</p>}
+          <p className="texto-claro">Guardado a las {hora(ubicacion.registradaEn)}</p>
         </section>
       ) : (
-        <p className="vacio">Aún no has guardado dónde dejaste tu vehículo.</p>
+        <p className="tarjeta texto-suave texto-centro">
+          Aún no has guardado dónde dejaste tu vehículo. Se guarda solo al confirmar tu llegada, o puedes hacerlo aquí.
+        </p>
       )}
 
-      <form className="panel formulario" onSubmit={guardar}>
-        <h2 className="panel__titulo">{ubicacion ? 'Actualizar ubicación' : 'Guardar ubicación'}</h2>
+      {ubicacion && (
+        <MapaSotano
+          pisos={pisos}
+          retencion={null}
+          ubicacion={ubicacion}
+          iniciarNavegacion={false}
+          onNavegacionIniciada={() => undefined}
+          onLlegar={() => undefined}
+          ocupado={false}
+        />
+      )}
+
+      <form className="tarjeta formulario" onSubmit={guardar}>
+        <h2 className="titulo-seccion">{ubicacion ? 'Corregir ubicación' : 'Guardar ubicación manualmente'}</h2>
         <label htmlFor="zona">Zona</label>
         <select id="zona" required value={idZona} onChange={(e) => setIdZona(e.target.value ? Number(e.target.value) : '')}>
           <option value="">Selecciona piso y zona…</option>

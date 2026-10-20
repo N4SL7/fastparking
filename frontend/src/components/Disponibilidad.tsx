@@ -45,7 +45,7 @@ function TarjetaZona({
           disabled={!puedeRetener || zona.cupoLogico === 0 || ocupado}
           onClick={() => onRetener(zona)}
         >
-          {zona.cupoLogico === 0 ? 'Sin cupo' : 'Retener 10 min'}
+          {zona.cupoLogico === 0 ? 'Sin cupo' : 'Retener 7 min'}
         </button>
       )}
     </li>
@@ -115,8 +115,8 @@ export function PanelAlternativas({
   onCerrar: () => void;
 }) {
   return (
-    <section className="panel panel--alerta" aria-labelledby="titulo-alternativas">
-      <h2 id="titulo-alternativas" className="panel__titulo">
+    <section className="tarjeta tarjeta--alerta" aria-labelledby="titulo-alternativas">
+      <h2 id="titulo-alternativas" className="titulo-seccion">
         {zonaSolicitada} se acaba de llenar
       </h2>
       {alternativas.length === 0 ? (
