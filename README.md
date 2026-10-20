@@ -120,8 +120,9 @@ Con Docker (opción A), ejecuta el simulador desde tu equipo con: `SIMULATOR_API
 1. Abre http://localhost:8080: aparece el **tiquete simulado con su QR**. Pulsa *Simular escaneo del QR* (o escanéalo con el celular en la misma red).
 2. En *Inicio* retén **S1-C** (7 minutos).
 3. Ejecuta `node simulator/simular.mjs llenar S1-C`: la PWA avisa que la retención fue **reasignada** a la zona más cercana con cupo.
-4. Pulsa *Ir con la ruta*: el **mapa 3D del sótano** muestra la flecha recorriendo la ruta hasta tu puesto.
-5. Pulsa *Confirmar que estacioné aquí*: la retención queda **UTILIZADA** y *Mi vehículo* muestra dónde quedó el carro.
+4. Pulsa *Ir con la ruta* (o, sin retención, toca un **puesto libre en el Mapa** y *Reservar 7 min*): el **mapa 3D del sótano** muestra la flecha con instrucciones de giro hasta tu puesto.
+5. Pulsa *Confirmar que estacioné aquí*: la retención queda **UTILIZADA** y *Mi vehículo* muestra la hora de entrada y dónde quedó el carro.
+6. En *Billetera* elige un método y paga (simulado): obtienes el comprobante con **QR de salida** y el historial.
 
 ## Pruebas
 
@@ -131,7 +132,7 @@ cd backend
 npm test
 ```
 
-26 pruebas automatizadas: reglas de negocio (unitarias) y casos de prueba CP-01 a CP-10 contra PostgreSQL real (incluida la prueba de concurrencia de dos conductores por el último cupo). Evidencia en [`docs/pruebas/`](docs/pruebas/).
+30 pruebas automatizadas: reglas de negocio (unitarias) y casos de prueba CP-01 a CP-11 contra PostgreSQL real (incluida la prueba de concurrencia de dos conductores por el último cupo). Evidencia en [`docs/pruebas/`](docs/pruebas/).
 
 ## Variables de entorno
 
@@ -146,6 +147,8 @@ No se suben secretos al repositorio: copia los archivos `.env.example` como `.en
 | `RETENTION_MINUTES` | backend | Vigencia de una retención (7) |
 | `SESSION_HOURS` | backend | Vigencia de la sesión anónima (12) |
 | `EXPIRATION_INTERVAL_MS` | backend | Frecuencia del planificador de expiraciones |
+| `TARIFA_POR_MINUTO` | backend | Tarifa ilustrativa en COP (130) |
+| `MINUTOS_PARA_SALIR` | backend | Minutos para salir después de pagar (15) |
 | `POSTGRES_PASSWORD` | raíz | Contraseña local del contenedor de PostgreSQL |
 
 ## API
@@ -160,6 +163,10 @@ No se suben secretos al repositorio: copia los archivos `.env.example` como `.en
 | POST | `/api/retentions/:id/cancel` | RF-08 |
 | POST | `/api/retentions/:id/arrive` | RF-16 (llegada confirmada) |
 | PUT / GET | `/api/vehicle-location` | RF-09 |
+| GET | `/api/sessions/current` | RF-09 (hora de entrada) |
+| GET | `/api/payments/quote` | RF-11 (liquidación) |
+| POST | `/api/payments` | RF-11 (pago simulado) |
+| GET | `/api/payments` | RF-17 (historial) |
 | POST | `/api/simulator/events` | RF-06, RF-07, RF-12, RF-15 |
 | GET | `/api/events/stream` | RF-06 (SSE) |
 
@@ -175,4 +182,5 @@ Actualmente **no está desplegado en la nube**; se ejecuta localmente con Docker
 - Disponibilidad **por zona**, no por espacio individual.
 - Eventos de ocupación **simulados**; sin conexión a sensores reales.
 - Plano **ilustrativo** del sótano; la ruta y la flecha son una **navegación simulada**, sin localización en vivo.
-- Sin pagos.
+- Pago **simulado** con tarifa ilustrativa ($130/min, configurable): no procesa dinero real ni guarda datos financieros.
+- Diseñada solo para celular (en computador se muestra en un marco de teléfono).

@@ -25,7 +25,7 @@ Fuentes editables: `diagramas/fuentes/*.dot` (Graphviz) generados por `diagramas
 
 | Contenedor | Tecnología | Responsabilidad | No debe hacer |
 |---|---|---|---|
-| PWA FastParking | React 18 + TypeScript + Vite, nginx | Tiquete con QR simulado, zonas, frescura, retención de 7 min, mapa 3D del sótano con navegación simulada, avisos y ubicación | Decidir si una retención es válida o resolver concurrencia |
+| PWA FastParking | React 18 + TypeScript + Vite, nginx (solo celular) | Tiquete con QR simulado, Inicio (zonas), Mapa 3D con elección de puesto y navegación simulada, Mi vehículo y Billetera (pago simulado e historial) | Decidir si una retención es válida o resolver concurrencia |
 | API FastParking | Node.js + Express + TypeScript | Validar, aplicar reglas, transacciones, expiración, reasignación, SSE | Exponer secretos o confiar en estados calculados en el cliente |
 | Base de datos | PostgreSQL 16 | Persistir y garantizar integridad (FK, CHECK, índice único parcial) | Guardar datos personales o financieros |
 | Simulador | CLI Node.js | Generar eventos ENTRADA/SALIDA etiquetados como SIMULADOR | Presentarse como sensor real |
@@ -43,6 +43,7 @@ Fuentes editables: `diagramas/fuentes/*.dot` (Graphviz) generados por `diagramas
 | Adaptador de eventos | `modules/events/event.adapter.ts` | Normaliza mensajes de la fuente |
 | Procesador de eventos | `modules/events/events.service.ts` | Idempotencia, orden, ocupación, conflictos |
 | Ubicación | `modules/locations` | Guardar/recuperar ubicación |
+| Pagos | `modules/payments` | Liquidación por minuto, pago simulado con bloqueo de la sesión, comprobante e historial |
 | Notificador | `shared/realtime.ts` | Server-Sent Events |
 | Acceso a datos | `db/pool.ts`, `*.repository.ts` | SQL parametrizado y transacciones |
 
@@ -54,6 +55,8 @@ Fuentes editables: `diagramas/fuentes/*.dot` (Graphviz) generados por `diagramas
 | REST | `GET /api/zones` | Disponibilidad agregada y marca temporal |
 | REST | `POST /api/retentions` | Solicita retención (transacción + bloqueo) |
 | REST | `GET /api/retentions/current`, `GET /api/retentions/:id` | Estado y vencimiento |
+| REST | `GET /api/sessions/current` | Hora de entrada (RF-09) |
+| REST | `GET /api/payments/quote` · `POST /api/payments` · `GET /api/payments` | Liquidación, pago simulado e historial (RF-11, RF-17) |
 | REST | `POST /api/retentions/:id/arrive` | Confirma llegada: UTILIZADA + ocupación + ubicación (RF-16) |
 | REST | `POST /api/retentions/:id/cancel` | Cancela (se conserva en el historial; por eso no es DELETE) |
 | REST | `PUT/GET /api/vehicle-location` | Ubicación del vehículo |

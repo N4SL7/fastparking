@@ -31,9 +31,9 @@
 <path fill="#083e4d" stroke="#083e4d" d="M273,-477.38C273,-477.38 12,-477.38 12,-477.38 6,-477.38 0,-471.38 0,-465.38 0,-465.38 0,-396.38 0,-396.38 0,-390.38 6,-384.38 12,-384.38 12,-384.38 273,-384.38 273,-384.38 279,-384.38 285,-390.38 285,-396.38 285,-396.38 285,-465.38 285,-465.38 285,-471.38 279,-477.38 273,-477.38"/>
 <text text-anchor="start" x="97" y="-458.57" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-weight="bold" font-size="11.00" fill="white">PWA FastParking</text>
 <text text-anchor="start" x="18" y="-449.18" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="9.00" fill="white">[Contenedor: React 18 + TypeScript + Vite, servida por nginx]</text>
-<text text-anchor="start" x="50.5" y="-428.38" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">Tiquete con QR simulado, zonas por piso,</text>
-<text text-anchor="start" x="46" y="-418.38" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">retención de 7 min, mapa 3D del sótano con</text>
-<text text-anchor="start" x="47" y="-408.38" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">navegación simulada, avisos y mi vehículo.</text>
+<text text-anchor="start" x="42.5" y="-428.38" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">Solo celular. Tiquete con QR simulado, Inicio,</text>
+<text text-anchor="start" x="53.5" y="-418.38" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">Mapa 3D (elegir puesto + ruta simulada),</text>
+<text text-anchor="start" x="56.5" y="-408.38" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">Mi vehículo y Billetera (pago simulado).</text>
 <text text-anchor="start" x="57.5" y="-398.38" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">Service worker: solo cachea la interfaz</text>
 </g>
 <!-- conductor&#45;&gt;pwa -->

@@ -39,10 +39,12 @@ edge [fontname="{FONT}", fontsize=9, color="{INK}", dir=both, fontcolor="{BRAND}
 {entidad("piso", [("PK","id_piso","SMALLINT"),("UK","codigo","VARCHAR(10)"),("","nombre","VARCHAR(40)"),("UK","orden","SMALLINT")])}
 {entidad("zona", [("PK","id_zona","SMALLINT"),("FK","id_piso","SMALLINT"),("UK","codigo","VARCHAR(10)"),("","nombre","VARCHAR(40)"),("","capacidad_total","INTEGER &gt; 0"),("","ocupados","INTEGER 0..capacidad"),("","orden_cercania","SMALLINT"),("","ultimo_evento_en","TIMESTAMPTZ"),("","actualizado_en","TIMESTAMPTZ"),("","es_simulada","BOOLEAN")], "UK (id_piso, orden_cercania)")}
 {entidad("sesion_visita", [("PK","id_sesion","UUID"),("UK","token_hash","CHAR(64) SHA-256"),("","creada_en","TIMESTAMPTZ"),("","expira_en","TIMESTAMPTZ")], "CHECK expira_en &gt; creada_en · sin datos personales")}
-{entidad("retencion", [("PK","id_retencion","UUID"),("FK","id_sesion","UUID"),("FK","id_zona","SMALLINT"),("FK","id_retencion_origen","UUID (nula)"),("","estado","VARCHAR(12)"),("","creada_en","TIMESTAMPTZ"),("","vence_en","TIMESTAMPTZ"),("","cerrada_en","TIMESTAMPTZ (nula)"),("","motivo_cierre","VARCHAR(60)")], NOTA_RET)}
+{entidad("retencion", [("PK","id_retencion","UUID"),("FK","id_sesion","UUID"),("FK","id_zona","SMALLINT"),("FK","id_retencion_origen","UUID (nula)"),("","puesto","SMALLINT &gt; 0 (nulo)"),("","estado","VARCHAR(12)"),("","creada_en","TIMESTAMPTZ"),("","vence_en","TIMESTAMPTZ"),("","cerrada_en","TIMESTAMPTZ (nula)"),("","motivo_cierre","VARCHAR(60)")], NOTA_RET)}
 {entidad("historial_retencion", [("PK","id_historial","BIGSERIAL"),("FK","id_retencion","UUID"),("FK","id_evento","UUID (nula)"),("","estado_anterior","VARCHAR(12)"),("","estado_nuevo","VARCHAR(12)"),("","motivo","VARCHAR(60)"),("","registrado_en","TIMESTAMPTZ")])}
 {entidad("evento_ocupacion", [("PK","id_evento","UUID (idempotencia)"),("FK","id_zona","SMALLINT"),("","tipo","ENTRADA · SALIDA"),("","cantidad","SMALLINT &gt; 0"),("","fuente","SIMULADOR · CONDUCTOR"),("","ocurrido_en","TIMESTAMPTZ"),("","recibido_en","TIMESTAMPTZ"),("","resultado","APLICADO · DESCARTADO_TARDIO")])}
 {entidad("ubicacion_vehiculo", [("PK","id_ubicacion","UUID"),("FK UK","id_sesion","UUID"),("FK","id_zona","SMALLINT"),("","puesto","SMALLINT &gt; 0 (nulo)"),("","referencia","VARCHAR(80)"),("","registrada_en","TIMESTAMPTZ")])}
+{entidad("pago", [("PK","id_pago","UUID"),("FK UK","id_sesion","UUID"),("UK","codigo","VARCHAR(12)"),("","minutos","INTEGER &gt; 0"),("","tarifa_minuto","INTEGER (COP)"),("","valor","INTEGER = min × tarifa"),("","metodo","TARJETA · NEQUI · PSE"),("","estado","APROBADO_SIMULADO"),("","pagado_en","TIMESTAMPTZ"),("","salida_hasta","TIMESTAMPTZ")], "Pago simulado: sin datos financieros")}
+sesion_visita -> pago [arrowtail=teetee, arrowhead=teeodot, xlabel="paga  1 : 0..1"];
 piso -> zona [arrowtail=teetee, arrowhead=crowtee, xlabel="contiene  1 : 1..N"];
 zona -> retencion [arrowtail=teetee, arrowhead=crowodot, xlabel="es retenida en  1 : 0..N"];
 sesion_visita -> retencion [arrowtail=teetee, arrowhead=crowodot, xlabel="solicita  1 : 0..N"];
@@ -70,9 +72,9 @@ EXTF = "#9aa8ad"
 
 c1 = f'''digraph C4_1 {{ {HEAD}
 graph [label="C4 · Nivel 1 — Contexto del sistema FastParking"];
-{persona("conductor", "Conductor / visitante", "Escanea el QR del tiquete, consulta zonas,<BR/>retiene una zona, sigue la ruta simulada<BR/>y guarda dónde parqueó")}
+{persona("conductor", "Conductor / visitante", "Escanea el QR del tiquete, elige un puesto,<BR/>sigue la ruta simulada, guarda dónde<BR/>parqueó y paga (simulado) desde la app")}
 {persona("operador", "Operador de pruebas", "Ejecuta escenarios de ocupación<BR/>simulados durante la demostración")}
-{caja("fp", "FastParking", "Sistema de software", "PWA + API: disponibilidad por zona,<BR/>retenciones temporales simuladas,<BR/>reasignación automática y ubicación del vehículo")}
+{caja("fp", "FastParking", "Sistema de software", "PWA + API: disponibilidad por zona, retención<BR/>simulada de 7 min con reasignación, mapa con<BR/>ruta simulada, ubicación y pago simulado")}
 {caja("sens", "Sensores / controlador del parqueadero", "Sistema externo — FUTURO", "Indicadores de cupos por piso de Parque La Colina.<BR/>Sin fabricante, API ni autorización: NO integrado", fill=EXTF, dashed=True)}
 {caja("cc", "Sistema de tiquetes y pago del centro comercial", "Sistema externo — FUERA DE ALCANCE", "Tiquete físico, talanqueras y pago tradicional.<BR/>FastParking lo complementa, no lo reemplaza", fill=EXTF, dashed=True)}
 conductor -> fp [label="  Usa desde el navegador móvil\\n  (QR → HTTPS)"];
@@ -89,7 +91,7 @@ graph [label="C4 · Nivel 2 — Contenedores de FastParking", compound=true];
 {persona("conductor", "Conductor / visitante", "Navegador móvil")}
 {persona("operador", "Operador de pruebas", "Terminal")}
 subgraph cluster_fp {{ label=<<B>FastParking</B> [Sistema de software]>; style="dashed,rounded"; color="{BRAND}"; fontcolor="{BRAND}"; fontsize=12;
-  {caja("pwa", "PWA FastParking", "Contenedor: React 18 + TypeScript + Vite, servida por nginx", "Tiquete con QR simulado, zonas por piso,<BR/>retención de 7 min, mapa 3D del sótano con<BR/>navegación simulada, avisos y mi vehículo.<BR/>Service worker: solo cachea la interfaz")}
+  {caja("pwa", "PWA FastParking", "Contenedor: React 18 + TypeScript + Vite, servida por nginx", "Solo celular. Tiquete con QR simulado, Inicio,<BR/>Mapa 3D (elegir puesto + ruta simulada),<BR/>Mi vehículo y Billetera (pago simulado).<BR/>Service worker: solo cachea la interfaz")}
   {caja("api", "API FastParking", "Contenedor: Node.js + Express + TypeScript", "Monolito modular: reglas de negocio,<BR/>concurrencia, expiración, reasignación,<BR/>adaptador de eventos y notificaciones SSE")}
   {caja("db", "Base de datos", "Contenedor: PostgreSQL 16", "Pisos, zonas, sesiones, retenciones,<BR/>historial, eventos y ubicaciones", shape="cylinder")}
   {caja("sim", "Simulador de eventos", "Contenedor: CLI Node.js (simulator/simular.mjs)", "Genera eventos ENTRADA/SALIDA<BR/>etiquetados como SIMULADOR")}
@@ -124,12 +126,13 @@ subgraph cluster_api {{ label=<<B>API FastParking</B> [Contenedor: Node.js + Exp
   {comp("adap", "Adaptador de eventos", "modules/events/event.adapter", "Contrato FuenteOcupacion:<BR/>normaliza el mensaje de la fuente")}
   {comp("proc", "Procesador de eventos", "modules/events/events.service", "Idempotencia, descarte de tardíos,<BR/>actualiza ocupación y detecta conflictos")}
   {comp("ubi", "Ubicación del vehículo", "modules/locations", "Guarda y recupera zona<BR/>y referencia por sesión")}
+  {comp("pagos", "Pagos", "modules/payments", "Liquidación por minuto, pago simulado<BR/>(1 por tiquete), comprobante e historial")}
   {comp("sse", "Notificador en tiempo real", "shared/realtime.ts", "Server-Sent Events: 'zonas'<BR/>y 'retencion' por sesión")}
   {comp("repo", "Acceso a datos", "db/pool.ts + *.repository.ts", "SQL parametrizado, withTransaction<BR/>con reintento ante deadlock")}
 }}
 pwa -> http [label="  REST + SSE"];
 sim -> http [label="  POST /api/simulator/events"];
-http -> ses; http -> disp; http -> ret; http -> ubi; http -> adap [label=" evento crudo"];
+http -> ses; http -> disp; http -> ret; http -> ubi; http -> pagos; pagos -> repo; http -> adap [label=" evento crudo"];
 adap -> proc [label=" evento normalizado"];
 proc -> reas [label=" conflicto"];
 reas -> disp [label=" alternativas"];

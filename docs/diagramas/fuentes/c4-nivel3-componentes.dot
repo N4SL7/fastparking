@@ -16,12 +16,13 @@ subgraph cluster_api { label=<<B>API FastParking</B> [Contenedor: Node.js + Expr
   adap [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Adaptador de eventos</B><BR/><FONT POINT-SIZE="9">[Componente · modules/events/event.adapter]</FONT><BR/><BR/><FONT POINT-SIZE="10">Contrato FuenteOcupacion:<BR/>normaliza el mensaje de la fuente</FONT>>, fontcolor="white"];
   proc [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Procesador de eventos</B><BR/><FONT POINT-SIZE="9">[Componente · modules/events/events.service]</FONT><BR/><BR/><FONT POINT-SIZE="10">Idempotencia, descarte de tardíos,<BR/>actualiza ocupación y detecta conflictos</FONT>>, fontcolor="white"];
   ubi [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Ubicación del vehículo</B><BR/><FONT POINT-SIZE="9">[Componente · modules/locations]</FONT><BR/><BR/><FONT POINT-SIZE="10">Guarda y recupera zona<BR/>y referencia por sesión</FONT>>, fontcolor="white"];
+  pagos [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Pagos</B><BR/><FONT POINT-SIZE="9">[Componente · modules/payments]</FONT><BR/><BR/><FONT POINT-SIZE="10">Liquidación por minuto, pago simulado<BR/>(1 por tiquete), comprobante e historial</FONT>>, fontcolor="white"];
   sse [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Notificador en tiempo real</B><BR/><FONT POINT-SIZE="9">[Componente · shared/realtime.ts]</FONT><BR/><BR/><FONT POINT-SIZE="10">Server-Sent Events: 'zonas'<BR/>y 'retencion' por sesión</FONT>>, fontcolor="white"];
   repo [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Acceso a datos</B><BR/><FONT POINT-SIZE="9">[Componente · db/pool.ts + *.repository.ts]</FONT><BR/><BR/><FONT POINT-SIZE="10">SQL parametrizado, withTransaction<BR/>con reintento ante deadlock</FONT>>, fontcolor="white"];
 }
 pwa -> http [label="  REST + SSE"];
 sim -> http [label="  POST /api/simulator/events"];
-http -> ses; http -> disp; http -> ret; http -> ubi; http -> adap [label=" evento crudo"];
+http -> ses; http -> disp; http -> ret; http -> ubi; http -> pagos; pagos -> repo; http -> adap [label=" evento crudo"];
 adap -> proc [label=" evento normalizado"];
 proc -> reas [label=" conflicto"];
 reas -> disp [label=" alternativas"];

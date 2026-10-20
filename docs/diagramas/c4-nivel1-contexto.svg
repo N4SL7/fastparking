@@ -17,19 +17,19 @@
 <text text-anchor="start" x="631.5" y="-241" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="20.00" fill="white">👤</text>
 <text text-anchor="start" x="589" y="-228.2" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-weight="bold" font-size="11.00" fill="white">Conductor / visitante</text>
 <text text-anchor="start" x="624" y="-218.8" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="9.00" fill="white">[Persona]</text>
-<text text-anchor="start" x="549" y="-209" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">Escanea el QR del tiquete, consulta zonas,</text>
-<text text-anchor="start" x="557" y="-199" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">retiene una zona, sigue la ruta simulada</text>
-<text text-anchor="start" x="591.5" y="-189" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">y guarda dónde parqueó</text>
+<text text-anchor="start" x="549" y="-209" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">Escanea el QR del tiquete, elige un puesto,</text>
+<text text-anchor="start" x="564" y="-199" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">sigue la ruta simulada, guarda dónde</text>
+<text text-anchor="start" x="557" y="-189" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">parqueó y paga (simulado) desde la app</text>
 </g>
 <!-- fp -->
 <g id="node3" class="node">
 <title>fp</title>
-<path fill="#083e4d" stroke="#083e4d" d="M431,-83C431,-83 205,-83 205,-83 199,-83 193,-77 193,-71 193,-71 193,-12 193,-12 193,-6 199,0 205,0 205,0 431,0 431,0 437,0 443,-6 443,-12 443,-12 443,-71 443,-71 443,-77 437,-83 431,-83"/>
+<path fill="#083e4d" stroke="#083e4d" d="M426.5,-83C426.5,-83 209.5,-83 209.5,-83 203.5,-83 197.5,-77 197.5,-71 197.5,-71 197.5,-12 197.5,-12 197.5,-6 203.5,0 209.5,0 209.5,0 426.5,0 426.5,0 432.5,0 438.5,-6 438.5,-12 438.5,-12 438.5,-71 438.5,-71 438.5,-77 432.5,-83 426.5,-83"/>
 <text text-anchor="start" x="286" y="-64.2" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-weight="bold" font-size="11.00" fill="white">FastParking</text>
 <text text-anchor="start" x="274" y="-54.8" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="9.00" fill="white">[Sistema de software]</text>
-<text text-anchor="start" x="239" y="-34" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">PWA + API: disponibilidad por zona,</text>
-<text text-anchor="start" x="242" y="-24" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">retenciones temporales simuladas,</text>
-<text text-anchor="start" x="211" y="-14" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">reasignación automática y ubicación del vehículo</text>
+<text text-anchor="start" x="217.5" y="-34" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">PWA + API: disponibilidad por zona, retención</text>
+<text text-anchor="start" x="215.5" y="-24" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">simulada de 7 min con reasignación, mapa con</text>
+<text text-anchor="start" x="227.5" y="-14" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="10.00" fill="white">ruta simulada, ubicación y pago simulado</text>
 </g>
 <!-- conductor&#45;&gt;fp -->
 <g id="edge1" class="edge">
@@ -52,8 +52,8 @@
 <!-- operador&#45;&gt;fp -->
 <g id="edge2" class="edge">
 <title>operador&#45;&gt;fp</title>
-<path fill="none" stroke="#4b6169" d="M99.79,-179.94C104.58,-159.51 113.28,-135.55 129,-119 144.7,-102.47 164.47,-89.42 185.26,-79.14"/>
-<polygon fill="#4b6169" stroke="#4b6169" points="186.63,-81.59 192.65,-75.62 184.22,-76.53 186.63,-81.59"/>
+<path fill="none" stroke="#4b6169" d="M99.79,-179.94C104.58,-159.51 113.28,-135.55 129,-119 145.83,-101.29 167.33,-87.56 189.75,-76.97"/>
+<polygon fill="#4b6169" stroke="#4b6169" points="190.94,-79.5 197.06,-73.64 188.62,-74.41 190.94,-79.5"/>
 <text text-anchor="middle" x="199" y="-131.4" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="9.50" fill="#33474e"> &#160;Inyecta eventos de ocupación</text>
 <text text-anchor="middle" x="199" y="-121.4" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="9.50" fill="#33474e"> &#160;simulados (clave del simulador)</text>
 </g>
