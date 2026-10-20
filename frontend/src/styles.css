@@ -41,12 +41,29 @@ p {
   margin: 0;
 }
 
-/* ---------- Estructura ---------- */
+/* ---------- Estructura: PWA solo para celular ---------- */
 .app {
+  position: relative;
   min-height: 100vh;
+  max-width: 430px;
+  margin: 0 auto;
+  background: var(--fondo);
+}
+@media (min-width: 520px) {
+  /* En computador se muestra dentro de un marco de teléfono */
+  body {
+    background: radial-gradient(circle at 20% 10%, #13708a 0%, #083e4d 45%, #041a21 100%);
+    padding: 24px 0;
+  }
+  .app {
+    min-height: calc(100vh - 48px);
+    border-radius: 36px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgb(0 0 0 / 0.45), 0 0 0 10px #0b1f26;
+  }
 }
 .encabezado {
-  max-width: 560px;
+  max-width: 430px;
   margin: 0 auto;
   padding: 18px 16px 6px;
   display: flex;
@@ -74,7 +91,7 @@ p {
   color: var(--texto-2);
 }
 .contenedor {
-  max-width: 560px;
+  max-width: 430px;
   margin: 0 auto;
   padding: 10px 16px 120px;
   display: flex;
@@ -501,7 +518,7 @@ p {
   bottom: calc(14px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 20;
-  width: min(420px, calc(100% - 28px));
+  width: min(400px, calc(100% - 28px));
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
@@ -544,7 +561,7 @@ p {
   z-index: 30;
   display: grid;
   gap: 8px;
-  max-width: 528px;
+  max-width: 398px;
   margin: 0 auto;
 }
 .notificacion {
@@ -652,11 +669,14 @@ p {
   word-break: break-all;
 }
 
-/* ---------- Mapa del sótano ---------- */
+/* ---------- Mapa del sótano (asfalto gris, bordes de marca, pintura reflectiva) ---------- */
 .mapa {
   display: grid;
   gap: 14px;
   padding: 16px;
+  background: var(--superficie);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
 }
 .mapa__cabecera {
   display: flex;
@@ -666,15 +686,18 @@ p {
 }
 .mapa-escena {
   position: relative;
-  height: 520px;
   overflow: hidden;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #f6f9fa 0%, #e9eff2 100%);
+  border-radius: 20px;
+  background: radial-gradient(120% 80% at 50% 0%, #e2e6e8 0%, #cfd5d8 60%, #bfc6ca 100%);
   perspective: 900px;
   perspective-origin: 50% 25%;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
 }
 .mapa-escena--navegando {
-  background: linear-gradient(180deg, #eef3f5 0%, #f7fafb 100%);
+  cursor: default;
+  background: radial-gradient(120% 80% at 50% 0%, #d7dcdf 0%, #c3cacd 70%);
 }
 .mapa-plano {
   position: absolute;
@@ -685,12 +708,16 @@ p {
   will-change: transform;
 }
 .plano-piso {
-  fill: #fbfdfd;
-  stroke: #d5e0e4;
-  stroke-width: 3;
+  fill: url(#asfalto);
+  stroke: #8f9a9f;
+  stroke-width: 4;
 }
 .plano-via {
-  fill: #e7edf0;
+  fill: #a9b2b6;
+}
+.plano-via__borde {
+  stroke: #ffd400;
+  stroke-width: 2;
 }
 .plano-via__linea {
   stroke: #fff;
@@ -698,46 +725,56 @@ p {
   stroke-dasharray: 16 14;
 }
 .plano-rampa {
-  fill: #d9e4e8;
+  fill: #96a0a5;
 }
 .plano-rampa__texto {
   font-size: 11px;
   font-weight: 800;
-  fill: var(--marca);
+  fill: #fff;
   letter-spacing: 1px;
 }
 .columna {
-  fill: #fff;
-  stroke: #d5e0e4;
+  fill: #eef1f2;
+  stroke: #7d888d;
 }
 .plano-zona {
-  fill: transparent;
-  stroke: transparent;
+  fill: rgb(255 255 255 / 0.18);
+  stroke: var(--marca);
+  stroke-width: 3;
 }
 .plano-zona--destacada {
-  fill: rgb(31 107 255 / 0.06);
-  stroke: rgb(31 107 255 / 0.4);
-  stroke-width: 2;
+  fill: rgb(31 107 255 / 0.1);
+  stroke: var(--azul-ruta);
 }
 .puesto {
   fill: transparent;
-  stroke: #cfdbe0;
-  stroke-width: 1.2;
+  stroke-width: 1.8;
+}
+.puesto-tocable {
+  cursor: pointer;
+}
+.puesto-tocable:hover .puesto {
+  fill: rgb(0 229 160 / 0.25);
 }
 .puesto--retenido {
-  fill: rgb(8 62 77 / 0.06);
-  stroke: var(--marca-3);
+  fill: rgb(8 62 77 / 0.18);
   stroke-dasharray: 4 3;
 }
 .puesto--mio {
-  fill: rgb(31 107 255 / 0.14);
-  stroke: var(--azul-ruta);
-  stroke-width: 2;
+  fill: rgb(31 107 255 / 0.28);
+  stroke: var(--azul-ruta) !important;
+  stroke-width: 3;
+}
+.puesto--elegido {
+  fill: rgb(0 229 160 / 0.4);
+  stroke: #00e5a0 !important;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 4px rgb(0 229 160 / 0.9));
 }
 .puesto__texto {
   font-size: 10px;
   font-weight: 800;
-  fill: var(--azul-ruta);
+  fill: #052c37;
 }
 .carro {
   fill: #ffffff;
@@ -748,41 +785,56 @@ p {
   stroke: var(--marca);
 }
 .carro__vidrio {
-  fill: #e6edf0;
+  fill: #dbe3e6;
 }
 .edificio__base {
-  fill: #d5e0e4;
+  fill: #8f9a9f;
 }
 .edificio {
-  fill: #ffffff;
-  stroke: #e1e9ec;
+  fill: #eef1f2;
+  stroke: #b8c1c5;
+}
+.edificio__placa {
+  fill: var(--marca);
 }
 .edificio__codigo {
   font-size: 22px;
   font-weight: 800;
-  fill: var(--marca);
+  fill: #fff;
 }
 .edificio__cupo {
   font-size: 9.5px;
   font-weight: 700;
-  fill: var(--texto-2);
-}
-.edificio__nombre {
-  font-size: 10px;
-  fill: #9aabb1;
-  letter-spacing: 0.5px;
+  fill: var(--marca);
 }
 .ruta {
   fill: none;
-  stroke-width: 9;
+  stroke-width: 10;
   stroke-linecap: round;
   stroke-linejoin: round;
+  filter: drop-shadow(0 0 3px rgb(31 107 255 / 0.6));
 }
 .ruta--recorrida {
   stroke: #a9c3ff;
+  filter: none;
+}
+.ruta__flecha {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chip-distancia {
+  fill: rgb(8 62 77 / 0.92);
+}
+.chip-distancia__texto {
+  font-size: 11px;
+  font-weight: 800;
+  fill: #fff;
 }
 .marcador__pulso {
-  fill: rgb(31 107 255 / 0.22);
+  fill: rgb(31 107 255 / 0.25);
   animation: pulso 1.4s ease-out infinite;
   transform-origin: center;
   transform-box: fill-box;
@@ -804,17 +856,92 @@ p {
   top: 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   padding: 12px 14px;
-  border-radius: 16px;
-  background: rgb(8 62 77 / 0.92);
+  border-radius: 18px;
+  background: rgb(8 62 77 / 0.94);
   color: #fff;
-  font-size: 0.88rem;
-  box-shadow: 0 10px 24px rgb(4 26 33 / 0.25);
+  font-size: 0.9rem;
+  line-height: 1.3;
+  box-shadow: 0 10px 24px rgb(4 26 33 / 0.3);
   backdrop-filter: blur(8px);
+}
+.hud small {
+  opacity: 0.75;
+}
+.hud__icono {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--azul-ruta);
+  flex: none;
+}
+.mapa__pista {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.9);
+  color: var(--marca);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+.mapa__aviso {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--medio-fondo);
+  color: var(--medio);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 .mapa__acciones {
   display: grid;
+  gap: 10px;
+}
+.hoja {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #fff 0%, #f5f8f9 100%);
+  border: 1px solid var(--borde);
+  box-shadow: 0 -6px 24px rgb(8 62 77 / 0.08);
+}
+.hoja__fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.hoja__titulo {
+  margin: 2px 0;
+  font-size: 1.5rem;
+  color: var(--marca);
+}
+.hoja__dato {
+  display: grid;
+  justify-items: center;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--marca);
+  color: #fff;
+}
+.hoja__dato strong {
+  font-size: 1.3rem;
+}
+.hoja__dato span {
+  font-size: 0.68rem;
+  opacity: 0.8;
+}
+.hoja__acciones {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
   gap: 10px;
 }
 .leyenda {
@@ -836,26 +963,172 @@ p {
   width: 16px;
   height: 11px;
   border-radius: 3px;
-  border: 1.5px solid #cfdbe0;
-  background: transparent;
+  border: 2px solid #ffd400;
+  background: #c3c9cc;
 }
-.leyenda__muestra.puesto--retenido {
-  border: 1.5px dashed var(--marca-3);
-  background: rgb(8 62 77 / 0.06);
+.leyenda__muestra--retenido {
+  border-style: dashed;
+  background: #9fb0b5;
 }
-.leyenda__muestra.puesto--mio {
+.leyenda__muestra--mio {
   border-color: var(--azul-ruta);
-  background: rgb(31 107 255 / 0.14);
+  background: rgb(31 107 255 / 0.35);
 }
 .leyenda__muestra--carro {
   background: #fff;
+  border-color: #c3c9cc;
   box-shadow: 0 2px 4px rgb(11 43 51 / 0.25);
-  border-color: #dfe7ea;
 }
-.mapa__zonas {
-  display: flex;
-  flex-wrap: wrap;
+.franja-retencion {
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--marca);
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+/* ---------- Billetera y comprobante ---------- */
+.cuenta {
+  display: grid;
+  gap: 10px;
+}
+.cuenta__total {
+  margin: 0;
+  font-size: 2.6rem;
+  letter-spacing: -1px;
+}
+.resumen {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+}
+.resumen > div {
+  display: grid;
+  gap: 2px;
+}
+.resumen__valor {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--marca);
+}
+.resumen__rotulo {
+  font-size: 0.72rem;
+  color: var(--texto-2);
+}
+.resumen--claro > div {
+  padding: 10px;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.1);
+}
+.resumen--claro .resumen__valor {
+  color: #fff;
+}
+.resumen--claro .resumen__rotulo {
+  color: rgb(255 255 255 / 0.7);
+}
+.resumen--tarjetas {
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.resumen--tarjetas .tarjeta {
+  display: grid;
+  gap: 6px;
+  color: var(--marca);
+}
+.resumen--tarjetas .resumen__valor {
+  font-size: 1.6rem;
+}
+.metodos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+.metodo {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 14px 6px;
+  border-radius: 16px;
+  border: 2px solid var(--borde);
+  background: #fff;
+  color: var(--marca);
+  font: inherit;
+  cursor: pointer;
+}
+.metodo--activo {
+  border-color: var(--marca);
+  background: var(--marca-suave);
+}
+.metodo__nombre {
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+.metodo__detalle {
+  font-size: 0.68rem;
+  color: var(--texto-2);
+}
+.comprobante {
+  display: grid;
+  gap: 14px;
+}
+.comprobante__estado {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ok);
+}
+.salida {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--fondo);
+}
+.salida__qr {
+  width: 128px;
+  height: 128px;
+  border-radius: 10px;
+}
+.salida__tiempo {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--marca);
+  font-variant-numeric: tabular-nums;
+}
+.historial {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+}
+.historial li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--borde);
+}
+.historial li div {
+  display: grid;
+}
+.vehiculo {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 22px;
+}
+.vehiculo__icono {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 0.14);
+  margin-bottom: 8px;
 }
 
 /* ---------- Formularios ---------- */
@@ -891,3 +1164,4 @@ p {
     animation: none;
   }
 }
+.hoja { scroll-margin-bottom: 110px; }

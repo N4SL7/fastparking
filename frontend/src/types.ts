@@ -44,6 +44,7 @@ export interface Retencion {
   cerradaEn: string | null;
   motivoCierre: string | null;
   idRetencionOrigen: string | null;
+  puesto: number | null;
   aviso: string;
 }
 
@@ -71,4 +72,30 @@ export interface CambioRetencion {
   tipo: 'CREADA' | 'CANCELADA' | 'EXPIRADA' | 'REASIGNADA' | 'INVALIDADA' | 'UTILIZADA';
   retencion: Retencion | null;
   anterior?: Retencion | null;
+}
+
+export type MetodoPago = 'TARJETA' | 'NEQUI' | 'PSE';
+
+export interface Comprobante {
+  idPago: string;
+  codigo: string;
+  minutos: number;
+  tarifaMinuto: number;
+  valor: number;
+  metodo: MetodoPago;
+  estado: 'APROBADO_SIMULADO';
+  pagadoEn: string;
+  salidaHasta: string;
+  ingreso: string;
+  aviso: string;
+}
+
+export interface Cotizacion {
+  ingreso: string;
+  minutos: number;
+  tarifaMinuto: number;
+  valor: number;
+  moneda: 'COP';
+  tarifaIlustrativa: boolean;
+  pago: Comprobante | null;
 }

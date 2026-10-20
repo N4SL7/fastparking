@@ -1,91 +1,113 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as PE } from 'react';
 import {
   CARRIL,
   CENTRO_CARRIL,
   PLANO,
   RAMPA,
+  chevrones,
   construirPlano,
   longitud,
   puntoEn,
   recorrido,
   rutaHastaPuesto,
+  siguienteInstruccion,
+  type Puesto,
   type Punto,
   type ZonaEnPlano,
 } from '../lib/plano';
-import type { Piso, Retencion, Ubicacion } from '../types';
+import type { Piso, Retencion, Ubicacion, Zona } from '../types';
 import { IconoNavegar } from './iconos';
-import { EtiquetaEstado } from './ui';
 
 const AZUL = '#1F6BFF';
-const ALTO_ESCENA = 560;
-const VELOCIDAD = 95; // unidades de plano por segundo (≈ 11 m/s en la simulación acelerada)
+const ALTO_ESCENA = 540;
+const VELOCIDAD = 95; // unidades de plano por segundo (simulación acelerada)
 const pts = (r: Punto[]) => r.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+const dos = (n: number) => String(n).padStart(2, '0');
 
-function Carro({ x, y, ancho, alto, propio }: { x: number; y: number; ancho: number; alto: number; propio?: boolean }) {
-  const m = Math.max(3, alto * 0.14);
-  const w = ancho - 14;
-  const h = alto - m * 2;
+/** Colores "reflectivos" (pintura de alta visibilidad) para identificar cada zona en el piso. */
+const REFLECTIVOS = ['#FFD400', '#B6FF00', '#FF8A00', '#00E5FF'];
+
+function Carro({ p, propio }: { p: Puesto; propio?: boolean }) {
+  const m = Math.max(3, p.alto * 0.14);
+  const w = p.ancho - 14;
+  const h = p.alto - m * 2;
   return (
-    <g filter="url(#sombra)">
-      <rect x={x + 7} y={y + m} width={w} height={h} rx={h * 0.32} className={propio ? 'carro carro--propio' : 'carro'} />
-      <rect x={x + 7 + w * 0.56} y={y + m + h * 0.16} width={w * 0.2} height={h * 0.68} rx={2} className="carro__vidrio" />
+    <g filter="url(#sombra)" pointerEvents="none">
+      <rect x={p.x + 7} y={p.y + m} width={w} height={h} rx={h * 0.32} className={propio ? 'carro carro--propio' : 'carro'} />
+      <rect x={p.x + 7 + w * 0.56} y={p.y + m + h * 0.16} width={w * 0.2} height={h * 0.68} rx={2} className="carro__vidrio" />
     </g>
   );
 }
 
-function ZonaSvg({ z, destacada }: { z: ZonaEnPlano; destacada: boolean }) {
-  const { zona, bloque, edificio, lado } = z;
+function ZonaSvg({
+  z,
+  indice,
+  destacada,
+  seleccionado,
+  onTocarPuesto,
+}: {
+  z: ZonaEnPlano;
+  indice: number;
+  destacada: boolean;
+  seleccionado: number | null;
+  onTocarPuesto: (z: ZonaEnPlano, p: Puesto) => void;
+}) {
+  const { zona, bloque, edificio } = z;
+  const reflectivo = REFLECTIVOS[indice % REFLECTIVOS.length];
   return (
     <g>
       <rect
-        x={bloque.x - 2}
+        x={bloque.x - 3}
         y={bloque.y}
-        width={bloque.ancho + 4}
+        width={bloque.ancho + 6}
         height={bloque.alto}
         rx={8}
-        className={`plano-zona plano-zona--${zona.estado.toLowerCase()} ${destacada ? 'plano-zona--destacada' : ''}`}
+        className={`plano-zona ${destacada ? 'plano-zona--destacada' : ''}`}
       />
-      {z.puestos.map((p) => (
-        <g key={p.numero}>
-          <rect x={p.x} y={p.y} width={p.ancho} height={p.alto} className={`puesto puesto--${p.estado}`} />
-          {(p.estado === 'ocupado' || p.estado === 'mi-vehiculo') && (
-            <Carro x={p.x} y={p.y} ancho={p.ancho} alto={p.alto} propio={p.estado === 'mi-vehiculo'} />
-          )}
-          {p.estado === 'mio' && (
-            <text x={p.cx} y={p.cy + 4} textAnchor="middle" className="puesto__texto">
-              P{String(p.numero).padStart(2, '0')}
-            </text>
-          )}
-        </g>
-      ))}
-      {/* Bloque tipo "edificio" (muros, ascensores) con extrusión para el efecto 3D */}
-      <rect x={edificio.x} y={edificio.y + 7} width={edificio.ancho} height={edificio.alto} rx={10} className="edificio__base" />
+      {z.puestos.map((p) => {
+        const elegido = seleccionado === p.numero;
+        return (
+          <g key={p.numero} onClick={() => onTocarPuesto(z, p)} className={p.estado === 'libre' ? 'puesto-tocable' : undefined}>
+            <rect
+              x={p.x}
+              y={p.y}
+              width={p.ancho}
+              height={p.alto}
+              className={`puesto puesto--${p.estado} ${elegido ? 'puesto--elegido' : ''}`}
+              style={{ stroke: reflectivo }}
+            />
+            {(p.estado === 'ocupado' || p.estado === 'mi-vehiculo') && <Carro p={p} propio={p.estado === 'mi-vehiculo'} />}
+            {(p.estado === 'mio' || elegido) && (
+              <text x={p.cx} y={p.cy + 4} textAnchor="middle" className="puesto__texto" pointerEvents="none">
+                P{dos(p.numero)}
+              </text>
+            )}
+          </g>
+        );
+      })}
+      {/* Bloque de concreto (muros, ascensores) con extrusión para el efecto 3D */}
+      <rect x={edificio.x} y={edificio.y + 8} width={edificio.ancho} height={edificio.alto} rx={10} className="edificio__base" />
       <rect x={edificio.x} y={edificio.y} width={edificio.ancho} height={edificio.alto} rx={10} className="edificio" />
-      <text
-        x={edificio.x + edificio.ancho / 2}
-        y={edificio.y + 34}
-        textAnchor="middle"
-        className="edificio__codigo"
-      >
+      <rect x={edificio.x + 8} y={edificio.y + 10} width={edificio.ancho - 16} height={34} rx={9} className="edificio__placa" />
+      <text x={edificio.x + edificio.ancho / 2} y={edificio.y + 34} textAnchor="middle" className="edificio__codigo">
         {zona.codigo.split('-')[1]}
       </text>
-      <text x={edificio.x + edificio.ancho / 2} y={edificio.y + 54} textAnchor="middle" className="edificio__cupo">
+      <rect x={edificio.x + 8} y={edificio.y + 50} width={edificio.ancho - 16} height={5} rx={2.5} fill={reflectivo} />
+      <text x={edificio.x + edificio.ancho / 2} y={edificio.y + 72} textAnchor="middle" className="edificio__cupo">
         {zona.cupoLogico} libres
-      </text>
-      <text
-        transform={`translate(${edificio.x + edificio.ancho / 2},${edificio.y + edificio.alto / 2 + 40}) rotate(${lado === 'izq' ? -90 : 90})`}
-        textAnchor="middle"
-        className="edificio__nombre"
-      >
-        {zona.nombre.replace(/^Zona \w — /, '')}
       </text>
     </g>
   );
 }
 
+interface Seleccion {
+  zona: Zona;
+  puesto: number;
+}
+
 /**
- * RF-10 / RF-16: plano ilustrativo del sótano con perspectiva 3D, ocupación por zona,
- * ruta de referencia y navegación SIMULADA con flecha hasta el puesto.
+ * RF-10 / RF-16: plano ILUSTRATIVO del sótano en perspectiva 3D. El conductor toca un puesto libre para
+ * reservarlo (retención temporal simulada de 7 min) y sigue la ruta simulada con flecha hasta llegar.
  */
 export function MapaSotano({
   pisos,
@@ -93,31 +115,38 @@ export function MapaSotano({
   ubicacion,
   iniciarNavegacion,
   onNavegacionIniciada,
+  onReservar,
   onLlegar,
   ocupado,
+  soloLectura = false,
 }: {
   pisos: Piso[];
   retencion: Retencion | null;
   ubicacion: Ubicacion | null;
   iniciarNavegacion: boolean;
   onNavegacionIniciada: () => void;
+  onReservar: (idZona: number, puesto: number) => Promise<boolean>;
   onLlegar: (puesto: number) => void;
   ocupado: boolean;
+  soloLectura?: boolean;
 }) {
   const pisoDe = (idZona?: number) => pisos.find((p) => p.zonas.some((z) => z.idZona === idZona));
-  const pisoInicial = pisoDe(retencion?.idZona) ?? pisoDe(ubicacion?.idZona) ?? pisos[0];
-  const [idPiso, setIdPiso] = useState(pisoInicial?.idPiso);
-  const [progreso, setProgreso] = useState<number | null>(null); // null = sin navegar
+  const [idPiso, setIdPiso] = useState((pisoDe(retencion?.idZona) ?? pisoDe(ubicacion?.idZona) ?? pisos[0])?.idPiso);
+  const [progreso, setProgreso] = useState<number | null>(null);
+  const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [pan, setPan] = useState(0);
+  const arrastre = useRef<{ y: number; pan: number; movido: boolean } | null>(null);
   const raf = useRef<number>();
   const giroCamara = useRef(0);
   const escena = useRef<HTMLDivElement>(null);
   const [anchoEscena, setAnchoEscena] = useState(360);
 
-  // Al aparecer una retención, el mapa salta a su piso.
   useEffect(() => {
     const p = pisoDe(retencion?.idZona);
     if (p) setIdPiso(p.idPiso);
     setProgreso(null);
+    setSeleccion(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retencion?.idRetencion]);
 
@@ -134,9 +163,10 @@ export function MapaSotano({
     () =>
       construirPlano(piso.zonas, {
         idZonaRetencion: retencion?.idZona,
+        puestoRetencion: retencion?.puesto,
         vehiculo: ubicacion ? { idZona: ubicacion.idZona, puesto: ubicacion.puesto } : undefined,
       }),
-    [piso, retencion?.idZona, ubicacion],
+    [piso, retencion?.idZona, retencion?.puesto, ubicacion],
   );
 
   const destino = useMemo(() => {
@@ -150,7 +180,7 @@ export function MapaSotano({
   function navegar() {
     if (!destino) return;
     cancelAnimationFrame(raf.current!);
-    const duracion = Math.max(5000, (longitud(destino.ruta) / VELOCIDAD) * 1000);
+    const duracion = Math.max(6000, (longitud(destino.ruta) / VELOCIDAD) * 1000);
     escena.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     const inicio = performance.now();
     const paso = (ahora: number) => {
@@ -162,7 +192,6 @@ export function MapaSotano({
   }
   useEffect(() => () => cancelAnimationFrame(raf.current!), []);
 
-  // Navegación pedida desde el panel de retención.
   useEffect(() => {
     if (iniciarNavegacion && destino) {
       onNavegacionIniciada();
@@ -174,26 +203,78 @@ export function MapaSotano({
   const navegando = progreso !== null && destino !== null;
   const marcador = navegando ? puntoEn(destino!.ruta, progreso!) : null;
   const llego = navegando && progreso! >= 1;
-  const metrosRestantes = navegando ? Math.round(longitud(destino!.ruta) * (1 - progreso!) * PLANO.metrosPorUnidad) : 0;
+  const instruccion = navegando ? siguienteInstruccion(destino!.ruta, progreso!) : null;
 
-  // Cámara: vista general inclinada, o seguimiento de la flecha (estilo navegación).
-  // La transformación lleva el punto de interés del plano (la flecha, o el borde superior en la vista general)
-  // a un punto fijo de la pantalla y gira el plano alrededor de él: lo que está adelante se aleja (efecto 3D).
+  // ---- Cámara ----
   const ajuste = anchoEscena / PLANO.ancho;
-  // El mapa gira para que la dirección de avance quede siempre "hacia arriba" (como un navegador GPS).
-  // Se elige el giro equivalente más cercano al anterior para que la transición no dé la vuelta larga.
+  const escalaVista = 0.92 * ajuste;
+  const cosVista = Math.cos((32 * Math.PI) / 180);
+  const panMax = Math.max(0, PLANO.alto - 640);
   if (marcador) {
-    const objetivo = -marcador.rumbo;
-    const delta = ((objetivo - giroCamara.current + 540) % 360) - 180;
+    const delta = ((-marcador.rumbo - giroCamara.current + 540) % 360) - 180;
     giroCamara.current += delta;
   }
   const camara = navegando
-    ? `translate(${anchoEscena / 2}px, ${ALTO_ESCENA * 0.8}px) rotateX(52deg) rotateZ(${giroCamara.current.toFixed(1)}deg) scale(${(1.5 * ajuste).toFixed(3)}) ` +
-      `translate(${(-marcador!.x).toFixed(1)}px, ${(-marcador!.y).toFixed(1)}px)`
-    : `translate(${anchoEscena / 2}px, 14px) rotateX(34deg) scale(${(0.58 * ajuste).toFixed(3)}) translate(${-PLANO.ancho / 2}px, 0px)`;
+    ? `translate(${anchoEscena / 2}px, ${ALTO_ESCENA * 0.8}px) rotateX(52deg) rotateZ(${giroCamara.current.toFixed(1)}deg) ` +
+      `scale(${(1.5 * ajuste).toFixed(3)}) translate(${(-marcador!.x).toFixed(1)}px, ${(-marcador!.y).toFixed(1)}px)`
+    : `translate(${anchoEscena / 2}px, 10px) rotateX(32deg) scale(${escalaVista.toFixed(3)}) translate(${-PLANO.ancho / 2}px, ${-pan}px)`;
+
+  // Al reservar o cambiar de piso, la vista general se desplaza hacia la zona de interés.
+  useEffect(() => {
+    if (navegando) return;
+    const objetivo = destino?.puesto.y ?? 0;
+    setPan(Math.min(panMax, Math.max(0, objetivo - 260)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destino?.puesto.numero, destino?.zona.idZona, idPiso, panMax]);
+
+  // ---- Arrastre para recorrer el sótano (vista general) ----
+  function alPresionar(e: PE<HTMLDivElement>) {
+    if (navegando) return;
+    arrastre.current = { y: e.clientY, pan, movido: false };
+  }
+  function alMover(e: PE<HTMLDivElement>) {
+    const a = arrastre.current;
+    if (!a || navegando) return;
+    const dy = e.clientY - a.y;
+    if (Math.abs(dy) > 6) a.movido = true;
+    if (a.movido) setPan(Math.min(panMax, Math.max(0, a.pan - dy / (escalaVista * cosVista))));
+  }
+  function alSoltar() {
+    setTimeout(() => (arrastre.current = null), 0);
+  }
+
+  function tocarPuesto(z: ZonaEnPlano, p: Puesto) {
+    if (arrastre.current?.movido || navegando || soloLectura) return;
+    setAviso(null);
+    if (retencion) {
+      setAviso('Ya tienes una retención vigente. Cancélala en Inicio para elegir otro puesto.');
+      return;
+    }
+    if (p.estado !== 'libre') {
+      setAviso(p.estado === 'retenido' ? 'Ese puesto está retenido por otro conductor.' : 'Ese puesto está ocupado.');
+      setSeleccion(null);
+      return;
+    }
+    if (z.zona.cupoLogico <= 0) {
+      setAviso(`La zona ${z.zona.codigo} ya no tiene cupo.`);
+      return;
+    }
+    setSeleccion({ zona: z.zona, puesto: p.numero });
+  }
+
+  const hoja = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (seleccion) hoja.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [seleccion]);
+
+  async function reservar() {
+    if (!seleccion) return;
+    const ok = await onReservar(seleccion.zona.idZona, seleccion.puesto);
+    if (ok) setSeleccion(null);
+  }
 
   return (
-    <section className="tarjeta mapa" aria-labelledby="titulo-mapa">
+    <section className="mapa" aria-labelledby="titulo-mapa">
       <div className="mapa__cabecera">
         <div>
           <p className="etiqueta">Plano ilustrativo · simulación</p>
@@ -212,6 +293,7 @@ export function MapaSotano({
               onClick={() => {
                 setIdPiso(p.idPiso);
                 setProgreso(null);
+                setSeleccion(null);
               }}
             >
               {p.codigo}
@@ -220,44 +302,80 @@ export function MapaSotano({
         </div>
       </div>
 
-      <div className={`mapa-escena ${navegando ? 'mapa-escena--navegando' : ''}`} ref={escena} style={{ height: ALTO_ESCENA }}>
+      <div
+        className={`mapa-escena ${navegando ? 'mapa-escena--navegando' : ''}`}
+        ref={escena}
+        style={{ height: ALTO_ESCENA }}
+        onPointerDown={alPresionar}
+        onPointerMove={alMover}
+        onPointerUp={alSoltar}
+        onPointerLeave={alSoltar}
+      >
         <div className="mapa-plano" style={{ transform: camara, width: PLANO.ancho, height: PLANO.alto }}>
           <svg viewBox={`0 0 ${PLANO.ancho} ${PLANO.alto}`} width={PLANO.ancho} height={PLANO.alto} role="img" aria-label={`Plano de ${piso.nombre}`}>
             <defs>
               <filter id="sombra" x="-30%" y="-30%" width="160%" height="160%">
-                <feDropShadow dx="0" dy="2.5" stdDeviation="2.2" floodColor="#0b2b33" floodOpacity="0.22" />
+                <feDropShadow dx="0" dy="2.5" stdDeviation="2.2" floodColor="#0b2b33" floodOpacity="0.28" />
               </filter>
+              <pattern id="asfalto" width="6" height="6" patternUnits="userSpaceOnUse">
+                <rect width="6" height="6" fill="#c3c9cc" />
+                <circle cx="1.5" cy="1.5" r="0.6" fill="#b7bec2" />
+                <circle cx="4.5" cy="4" r="0.5" fill="#cdd3d6" />
+              </pattern>
             </defs>
             <rect x="2" y="2" width={PLANO.ancho - 4} height={PLANO.alto - 4} rx="22" className="plano-piso" />
-            {/* Vía central */}
             <rect x={CARRIL.x} y={RAMPA.alto} width={CARRIL.ancho} height={PLANO.alto - RAMPA.alto - 10} className="plano-via" />
+            <line x1={CARRIL.x + 2} y1={RAMPA.alto} x2={CARRIL.x + 2} y2={PLANO.alto - 12} className="plano-via__borde" />
+            <line
+              x1={CARRIL.x + CARRIL.ancho - 2}
+              y1={RAMPA.alto}
+              x2={CARRIL.x + CARRIL.ancho - 2}
+              y2={PLANO.alto - 12}
+              className="plano-via__borde"
+            />
             <line x1={CENTRO_CARRIL} y1={RAMPA.alto + 10} x2={CENTRO_CARRIL} y2={PLANO.alto - 20} className="plano-via__linea" />
-            {/* Rampa de entrada */}
             <rect x={CARRIL.x - 10} y={RAMPA.y + 6} width={CARRIL.ancho + 20} height={RAMPA.alto - 6} rx="10" className="plano-rampa" />
-            <text x={CENTRO_CARRIL} y={RAMPA.y + 30} textAnchor="middle" className="plano-rampa__texto">
+            <text x={CENTRO_CARRIL} y={RAMPA.y + 32} textAnchor="middle" className="plano-rampa__texto">
               {piso.codigo === 'S1' ? 'ENTRADA' : `RAMPA ${piso.codigo}`}
             </text>
-            {/* Columnas estructurales */}
             {[200, 420, 640, 860].map((y) => (
               <g key={y}>
-                <rect x={CARRIL.x - 7} y={y} width="10" height="10" rx="2" className="columna" filter="url(#sombra)" />
-                <rect x={CARRIL.x + CARRIL.ancho - 3} y={y} width="10" height="10" rx="2" className="columna" filter="url(#sombra)" />
+                <rect x={CARRIL.x - 8} y={y} width="11" height="11" rx="2" className="columna" filter="url(#sombra)" />
+                <rect x={CARRIL.x + CARRIL.ancho - 3} y={y} width="11" height="11" rx="2" className="columna" filter="url(#sombra)" />
               </g>
             ))}
-            {plano.map((z) => (
-              <ZonaSvg key={z.zona.idZona} z={z} destacada={z.zona.idZona === retencion?.idZona} />
+            {plano.map((z, i) => (
+              <ZonaSvg
+                key={z.zona.idZona}
+                z={z}
+                indice={i}
+                destacada={z.zona.idZona === (retencion?.idZona ?? seleccion?.zona.idZona)}
+                seleccionado={seleccion?.zona.idZona === z.zona.idZona ? seleccion.puesto : null}
+                onTocarPuesto={tocarPuesto}
+              />
             ))}
             {destino && (
               <>
                 <polyline points={pts(destino.ruta)} className="ruta" stroke={AZUL} />
                 {navegando && <polyline points={pts(recorrido(destino.ruta, progreso!))} className="ruta ruta--recorrida" />}
-                <circle cx={destino.ruta[destino.ruta.length - 1].x} cy={destino.puesto.cy} r="6" fill={AZUL} />
+                {(navegando ? chevrones(destino.ruta, progreso!) : chevrones(destino.ruta, 0, 46)).map((c, i) => (
+                  <path key={i} d="M-5,3 L0,-3 L5,3" className="ruta__flecha" transform={`translate(${c.x},${c.y}) rotate(${c.rumbo})`} />
+                ))}
+                <circle cx={destino.puesto.cx} cy={destino.puesto.cy} r="7" fill={AZUL} stroke="#fff" strokeWidth="2.5" />
               </>
+            )}
+            {navegando && instruccion?.punto && !llego && (
+              <g transform={`translate(${instruccion.punto.x},${instruccion.punto.y}) rotate(${-giroCamara.current}) translate(0,-26)`}>
+                <rect x="-20" y="-11" width="40" height="22" rx="7" className="chip-distancia" />
+                <text y="4" textAnchor="middle" className="chip-distancia__texto">
+                  {instruccion.metros} m
+                </text>
+              </g>
             )}
             {marcador && (
               <g transform={`translate(${marcador.x},${marcador.y})`}>
                 {!llego && <circle r="20" className="marcador__pulso" />}
-                <ellipse cx="0" cy="5" rx="15" ry="6" fill="#0b2b33" opacity="0.18" />
+                <ellipse cx="0" cy="5" rx="15" ry="6" fill="#0b2b33" opacity="0.2" />
                 <circle r="15" fill={AZUL} stroke="#fff" strokeWidth="3.5" />
                 <path d="M0,-7 L6,5 L0,2 L-6,5 Z" fill="#fff" transform={`rotate(${marcador.rumbo})`} />
               </g>
@@ -267,24 +385,68 @@ export function MapaSotano({
 
         {navegando && (
           <div className="hud" role="status">
-            <IconoNavegar size={18} />
+            <span className="hud__icono">
+              <IconoNavegar size={18} />
+            </span>
             {llego ? (
               <span>
-                Llegaste a <strong>{destino!.zona.codigo}</strong> · Puesto {String(destino!.puesto.numero).padStart(2, '0')}
+                Llegaste a <strong>{destino!.zona.codigo}</strong> · Puesto {dos(destino!.puesto.numero)}
               </span>
             ) : (
               <span>
-                {metrosRestantes} m · hacia <strong>{destino!.zona.codigo}</strong> · Puesto {String(destino!.puesto.numero).padStart(2, '0')}
+                <strong>{instruccion!.texto}</strong> en {instruccion!.metros} m
+                <br />
+                <small>
+                  Destino {destino!.zona.codigo} · P{dos(destino!.puesto.numero)}
+                </small>
               </span>
             )}
           </div>
         )}
+        {!navegando && !soloLectura && !retencion && !seleccion && (
+          <p className="mapa__pista">Toca un puesto libre para reservarlo · arrastra para recorrer el sótano</p>
+        )}
       </div>
+
+      {aviso && (
+        <p className="mapa__aviso" role="alert">
+          {aviso}
+        </p>
+      )}
+
+      {seleccion && !retencion && (
+        <div className="hoja" role="dialog" aria-labelledby="titulo-hoja" ref={hoja}>
+          <div className="hoja__fila">
+            <div>
+              <p className="etiqueta">Puesto libre</p>
+              <h3 id="titulo-hoja" className="hoja__titulo">
+                {seleccion.zona.codigo} · P{dos(seleccion.puesto)}
+              </h3>
+              <p className="texto-suave texto-chico">
+                {piso.nombre} · {seleccion.zona.nombre.replace(/^Zona \w — /, '')}
+              </p>
+            </div>
+            <div className="hoja__dato">
+              <strong>7:00</strong>
+              <span>min de retención</span>
+            </div>
+          </div>
+          <div className="hoja__acciones">
+            <button type="button" className="boton boton--secundario" onClick={() => setSeleccion(null)}>
+              Cancelar
+            </button>
+            <button type="button" className="boton" disabled={ocupado} onClick={reservar}>
+              Reservar 7 min
+            </button>
+          </div>
+          <p className="nota">Retención temporal simulada: no garantiza el cupo físico.</p>
+        </div>
+      )}
 
       <div className="mapa__acciones">
         {destino && !navegando && (
           <button type="button" className="boton boton--grande" onClick={navegar}>
-            <IconoNavegar size={18} /> Iniciar ruta simulada a {destino.zona.codigo}
+            <IconoNavegar size={18} /> Ir a {destino.zona.codigo} · P{dos(destino.puesto.numero)}
           </button>
         )}
         {llego && (
@@ -297,35 +459,25 @@ export function MapaSotano({
             </button>
           </>
         )}
-        {!destino && !retencion && (
-          <p className="texto-suave texto-centro">Retén una zona en Inicio para ver la ruta y navegar hasta tu puesto.</p>
-        )}
       </div>
 
       <ul className="leyenda" aria-label="Convenciones del plano">
         <li>
-          <span className="leyenda__muestra puesto--libre" /> Libre
+          <span className="leyenda__muestra leyenda__muestra--libre" /> Libre
         </li>
         <li>
           <span className="leyenda__muestra leyenda__muestra--carro" /> Ocupado
         </li>
         <li>
-          <span className="leyenda__muestra puesto--retenido" /> Retenido
+          <span className="leyenda__muestra leyenda__muestra--retenido" /> Retenido
         </li>
         <li>
-          <span className="leyenda__muestra puesto--mio" /> Tu puesto
+          <span className="leyenda__muestra leyenda__muestra--mio" /> Tu puesto
         </li>
       </ul>
-      <div className="mapa__zonas">
-        {plano.map((z) => (
-          <span key={z.zona.idZona} className="chip">
-            {z.zona.codigo} <EtiquetaEstado estado={z.zona.estado} />
-          </span>
-        ))}
-      </div>
       <p className="nota">
         Plano ilustrativo de referencia: no es el plano oficial del centro comercial ni muestra tu posición en vivo. La ruta y
-        el movimiento de la flecha son una simulación.
+        la flecha son una simulación.
       </p>
     </section>
   );

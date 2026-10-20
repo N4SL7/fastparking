@@ -56,3 +56,33 @@ export const IconoUbicacion = ({ size = 20 }: P) => (
     <circle cx="12" cy="10" r="2.5" />
   </svg>
 );
+export const IconoBilletera = ({ size = 24 }: P) => (
+  <svg {...base(size)}>
+    <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3" />
+    <rect x="3.5" y="8" width="17" height="11" rx="2.5" />
+    <path d="M16 13.5h2" />
+  </svg>
+);
+export const IconoCheck = ({ size = 24 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="m8 12.5 2.6 2.5L16 9.5" />
+  </svg>
+);
+export const IconoTarjeta = ({ size = 22 }: P) => (
+  <svg {...base(size)}>
+    <rect x="3" y="5.5" width="18" height="13" rx="2.5" />
+    <path d="M3 10h18M7 15h3" />
+  </svg>
+);
+export const IconoCelular = ({ size = 22 }: P) => (
+  <svg {...base(size)}>
+    <rect x="7" y="3" width="10" height="18" rx="2.5" />
+    <path d="M11 17.5h2" />
+  </svg>
+);
+export const IconoBanco = ({ size = 22 }: P) => (
+  <svg {...base(size)}>
+    <path d="M3 9.5 12 4l9 5.5M5 10v7M9.5 10v7M14.5 10v7M19 10v7M3.5 20h17" />
+  </svg>
+);

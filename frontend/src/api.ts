@@ -1,4 +1,4 @@
-import type { Disponibilidad, Retencion, Ubicacion } from './types';
+import type { Comprobante, Cotizacion, Disponibilidad, MetodoPago, Retencion, Ubicacion } from './types';
 
 /** Error de la API con código estable (RF-14). */
 export class ApiError extends Error {
@@ -44,7 +44,12 @@ export const api = {
     pedir<{ idSesion: string; expiraEn: string }>('/api/sessions', { method: 'POST', body: JSON.stringify({ qrToken }) }),
   zonas: () => pedir<Disponibilidad>('/api/zones'),
   retencionActual: () => pedir<{ retencion: Retencion | null }>('/api/retentions/current'),
-  retener: (idZona: number) => pedir<Retencion>('/api/retentions', { method: 'POST', body: JSON.stringify({ idZona }) }),
+  sesionActual: () => pedir<{ idSesion: string; creadaEn: string; expiraEn: string }>('/api/sessions/current'),
+  retener: (idZona: number, puesto?: number) =>
+    pedir<Retencion>('/api/retentions', { method: 'POST', body: JSON.stringify({ idZona, puesto }) }),
+  cotizar: () => pedir<Cotizacion>('/api/payments/quote'),
+  pagar: (metodo: MetodoPago) => pedir<Comprobante>('/api/payments', { method: 'POST', body: JSON.stringify({ metodo }) }),
+  pagos: () => pedir<{ pagos: Comprobante[] }>('/api/payments'),
   cancelar: (idRetencion: string) => pedir<Retencion>(`/api/retentions/${idRetencion}/cancel`, { method: 'POST' }),
   llegar: (idRetencion: string, puesto?: number) =>
     pedir<Retencion>(`/api/retentions/${idRetencion}/arrive`, { method: 'POST', body: JSON.stringify({ puesto }) }),

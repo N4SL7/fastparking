@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError } from './api';
 import { ListaZonas, PanelAlternativas, SelectorPiso } from './components/Disponibilidad';
-import { IconoCarro, IconoInicio, IconoMapa, IconoTiquete } from './components/iconos';
+import { Billetera } from './components/Billetera';
+import { IconoBilletera, IconoCarro, IconoInicio, IconoMapa } from './components/iconos';
 import { MapaSotano } from './components/MapaSotano';
 import { MiVehiculo } from './components/MiVehiculo';
 import { PanelRetencion } from './components/PanelRetencion';
@@ -11,13 +12,13 @@ import { useSesion } from './hooks/useSesion';
 import { useTiempoReal } from './hooks/useTiempoReal';
 import type { Alternativa, CambioRetencion, Retencion, Ubicacion, Zona } from './types';
 
-type Pestana = 'inicio' | 'mapa' | 'vehiculo' | 'tiquete';
+type Pestana = 'inicio' | 'mapa' | 'vehiculo' | 'billetera';
 
 const PESTANAS: { id: Pestana; texto: string; icono: ReactNode }[] = [
   { id: 'inicio', texto: 'Inicio', icono: <IconoInicio /> },
   { id: 'mapa', texto: 'Mapa', icono: <IconoMapa /> },
   { id: 'vehiculo', texto: 'Mi vehículo', icono: <IconoCarro /> },
-  { id: 'tiquete', texto: 'Tiquete', icono: <IconoTiquete /> },
+  { id: 'billetera', texto: 'Billetera', icono: <IconoBilletera /> },
 ];
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
   const { idSesion } = sesion;
   const [retencion, setRetencion] = useState<Retencion | null>(null);
   const [ubicacion, setUbicacion] = useState<Ubicacion | null>(null);
+  const [ingreso, setIngreso] = useState<string | null>(null);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [pestana, setPestana] = useState<Pestana>('inicio');
   const [idPiso, setIdPiso] = useState<number | null>(null);
@@ -70,8 +72,11 @@ export default function App() {
     if (!idSesion) {
       setRetencion(null);
       setUbicacion(null);
+      setIngreso(null);
+      setPestana('inicio');
       return;
     }
+    api.sesionActual().then((s) => setIngreso(s.creadaEn)).catch(() => undefined);
     api.retencionActual().then((r) => setRetencion(r.retencion)).catch(() => undefined);
     api.ubicacion().then((r) => setUbicacion(r.ubicacion)).catch(() => undefined);
   }, [idSesion]);
@@ -88,13 +93,14 @@ export default function App() {
     if (datos && idPiso === null) setIdPiso(datos.pisos[0]?.idPiso ?? null);
   }, [datos, idPiso]);
 
-  async function retener(idZona: number) {
+  async function retener(idZona: number, puesto?: number): Promise<boolean> {
     setOcupado(true);
     try {
-      const r = await api.retener(idZona);
+      const r = await api.retener(idZona, puesto);
       setRetencion(r);
       setConflicto(null);
-      avisar(`Retención creada en ${r.zonaCodigo}. Tienes 7 minutos para llegar.`, 'exito');
+      avisar(`Retención creada en ${r.zonaCodigo}${r.puesto ? ` · P${String(r.puesto).padStart(2, '0')}` : ''}. Tienes 7 minutos para llegar.`, 'exito');
+      return true;
     } catch (e) {
       const err = e as ApiError;
       if (err.code === 'ZONA_SIN_CUPO') {
@@ -103,6 +109,7 @@ export default function App() {
       } else {
         avisar(err.message, 'alerta');
       }
+      return false;
     } finally {
       setOcupado(false);
       tiempoReal.recargar();
@@ -240,7 +247,7 @@ export default function App() {
         {pestana === 'mapa' && datos && (
           <>
             {retencion && (
-              <p className="tarjeta franja-retencion">
+              <p className="franja-retencion">
                 Retención en <strong>{retencion.zonaCodigo}</strong> · vence en{' '}
                 {(() => {
                   const s = Math.max(0, Math.floor((Date.parse(retencion.venceEn) - ahora) / 1000));
@@ -254,25 +261,16 @@ export default function App() {
               ubicacion={retencion ? null : ubicacion}
               iniciarNavegacion={pedirNavegacion}
               onNavegacionIniciada={() => setPedirNavegacion(false)}
+              onReservar={retener}
               onLlegar={llegar}
               ocupado={ocupado}
             />
           </>
         )}
 
-        {pestana === 'vehiculo' && datos && (
-          <MiVehiculo pisos={datos.pisos} ubicacion={ubicacion} onGuardada={setUbicacion} onAviso={avisar} />
-        )}
+        {pestana === 'vehiculo' && <MiVehiculo ingreso={ingreso} ubicacion={ubicacion} />}
 
-        {pestana === 'tiquete' && (
-          <Tiquete
-            token={sesion.tiquete.token}
-            horaIngreso={new Date(sesion.tiquete.ingreso)}
-            sesionActiva
-            onEscanear={() => undefined}
-            onNuevoTiquete={sesion.nuevoIngreso}
-          />
-        )}
+        {pestana === 'billetera' && <Billetera ahora={ahora} onAviso={avisar} onNuevoIngreso={sesion.nuevoIngreso} />}
       </main>
 
       <nav className="barra-nav" aria-label="Secciones">

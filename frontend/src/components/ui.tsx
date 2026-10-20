@@ -45,6 +45,10 @@ export function EtiquetaEstado({ estado }: { estado: EstadoZona }) {
   );
 }
 
+/** Hora corta legible, p. ej. "1:58 a. m." */
+export const horaCorta = (iso: string | number) =>
+  new Date(iso).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' });
+
 export const hora = (iso: string | number) =>
   new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 

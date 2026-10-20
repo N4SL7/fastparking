@@ -49,8 +49,10 @@ function ordenDeOcupacion(idZona: number, n: number): number[] {
 }
 
 export interface OpcionesPlano {
-  /** Zona de la retención vigente del conductor (se le asigna el primer puesto libre más cercano a la rampa). */
+  /** Zona de la retención vigente del conductor. */
   idZonaRetencion?: number;
+  /** Puesto elegido en el mapa; si no hay o está ocupado, se usa el primer libre más cercano a la rampa. */
+  puestoRetencion?: number | null;
   /** Ubicación guardada del vehículo. */
   vehiculo?: { idZona: number; puesto: number | null };
 }
@@ -90,7 +92,9 @@ export function construirPlano(zonas: Zona[], opciones: OpcionesPlano = {}): Zon
       const libres = puestos.filter((p) => p.estado === 'libre');
       let retenidasOtras = zona.retenidas;
       if (opciones.idZonaRetencion === zona.idZona && libres.length > 0) {
-        libres.shift()!.estado = 'mio';
+        const elegido = libres.find((p) => p.numero === opciones.puestoRetencion) ?? libres[0];
+        elegido.estado = 'mio';
+        libres.splice(libres.indexOf(elegido), 1);
         retenidasOtras--;
       }
       for (const p of libres) {
@@ -154,4 +158,32 @@ export function recorrido(ruta: Punto[], t: number): Punto[] {
   }
   puntos.push(fin);
   return puntos;
+}
+
+/** Próxima instrucción de giro a una fracción t del recorrido (estilo navegador). */
+export function siguienteInstruccion(ruta: Punto[], t: number): { texto: string; metros: number; punto: Punto | null } {
+  const objetivo = longitud(ruta) * t;
+  let acumulado = 0;
+  for (let i = 1; i < ruta.length; i++) {
+    const a = ruta[i - 1];
+    const b = ruta[i];
+    const tramo = Math.hypot(b.x - a.x, b.y - a.y);
+    if (acumulado + tramo >= objetivo) {
+      const metros = Math.max(0, Math.round((acumulado + tramo - objetivo) * PLANO.metrosPorUnidad));
+      if (i === ruta.length - 1) return { texto: 'Tu puesto está adelante', metros, punto: b };
+      const c = ruta[i + 1];
+      const giro = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+      return { texto: giro > 0 ? 'Gira a la derecha' : 'Gira a la izquierda', metros, punto: b };
+    }
+    acumulado += tramo;
+  }
+  return { texto: 'Llegaste', metros: 0, punto: null };
+}
+
+/** Puntos con rumbo cada `paso` unidades entre t y el final (para dibujar flechas sobre el piso). */
+export function chevrones(ruta: Punto[], t: number, paso = 34): (Punto & { rumbo: number })[] {
+  const total = longitud(ruta);
+  const salida: (Punto & { rumbo: number })[] = [];
+  for (let d = total * t + 22; d < total - 10; d += paso) salida.push(puntoEn(ruta, d / total));
+  return salida;
 }

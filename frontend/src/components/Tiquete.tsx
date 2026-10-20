@@ -37,8 +37,8 @@ export function Tiquete({
           {sesionActiva ? 'Tu tiquete de parqueadero' : 'Bienvenido a Parque La Colina'}
         </h2>
         <p className="texto-suave">
-          Al ingresar, la máquina entrega el tiquete físico de siempre con un QR. Escanéalo con tu celular para ver los cupos
-          por zona sin instalar ninguna app.
+          Al ingresar, la máquina entrega el tiquete físico de siempre con un QR. Escanéalo con tu celular para ver el mapa
+          del sótano, reservar un puesto y pagar desde la app, sin instalar nada.
         </p>
       </div>
 
@@ -64,11 +64,11 @@ export function Tiquete({
           </div>
           <div>
             <dt>Placa</dt>
-            <dd>No se almacena</dd>
+            <dd>No se guarda</dd>
           </div>
         </dl>
         <div className="tiquete__corte" aria-hidden="true" />
-        <p className="tiquete__pie">Conserve este tiquete. El pago se realiza en las cajas habituales.</p>
+        <p className="tiquete__pie">Conserve este tiquete. Puede pagar desde la app FastParking o en las cajas habituales.</p>
       </div>
 
       {!sesionActiva ? (
