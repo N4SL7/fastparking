@@ -5,3 +5,6 @@ dev-dist/
 *.log
 .DS_Store
 coverage/
+
+~*
+*.tmp
