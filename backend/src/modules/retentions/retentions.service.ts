@@ -1,9 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import { config } from '../../config.js';
 import { pool, withTransaction } from '../../db/pool.js';
 import { AppError } from '../../shared/errors.js';
 import { notificador } from '../../shared/realtime.js';
 import { bloquearZona, listarZonas, marcarZonaActualizada } from '../zones/availability.service.js';
 import { ordenarAlternativas } from '../zones/availability.rules.js';
+import { guardarUbicacion } from '../locations/locations.service.js';
 import * as repo from './retentions.repository.js';
 import type { RetencionVista } from './retentions.repository.js';
 
@@ -93,6 +95,56 @@ export async function cancelarRetencion(idSesion: string, idRetencion: string): 
   notificador.publicarZonasActualizadas();
   notificador.publicarRetencion(idSesion, { tipo: 'CANCELADA', retencion: cancelada });
   return cancelada;
+}
+
+/**
+ * RF-16: el conductor llegó (navegación simulada) y confirma que estacionó.
+ * En una sola transacción: la retención pasa a UTILIZADA, la zona suma un vehículo físico mediante un
+ * evento de ocupación con fuente CONDUCTOR y se guarda la ubicación del vehículo (RF-09).
+ * El cupo lógico no cambia: deja de contar la retención y empieza a contar el vehículo.
+ */
+export async function confirmarLlegada(idSesion: string, idRetencion: string, puesto?: number): Promise<RetencionVista> {
+  const resultado = await withTransaction(async (tx) => {
+    const previa = await repo.buscarPorId(tx, idRetencion);
+    if (!previa || previa.idSesion !== idSesion) {
+      throw new AppError(404, 'RETENCION_NO_EXISTE', 'La retención no existe para esta sesión.');
+    }
+    await bloquearZona(tx, previa.idZona);
+    await repo.expirarVencidas(tx, idSesion);
+    if (!(await repo.cerrar(tx, idRetencion, 'UTILIZADA', 'LLEGADA_CONFIRMADA'))) {
+      const actual = await repo.buscarPorId(tx, idRetencion);
+      return { ok: false as const, estado: actual!.estado };
+    }
+    const idEvento = randomUUID();
+    await tx.query(
+      `INSERT INTO evento_ocupacion (id_evento, id_zona, tipo, cantidad, fuente, ocurrido_en, resultado)
+       VALUES ($1, $2, 'ENTRADA', 1, 'CONDUCTOR', now(), 'APLICADO')`,
+      [idEvento, previa.idZona],
+    );
+    await tx.query(
+      `UPDATE zona SET ocupados = LEAST(capacidad_total, ocupados + 1),
+              ultimo_evento_en = GREATEST(COALESCE(ultimo_evento_en, now()), now()), actualizado_en = now()
+       WHERE id_zona = $1`,
+      [previa.idZona],
+    );
+    await repo.registrarHistorial(tx, {
+      idRetencion,
+      estadoAnterior: 'VIGENTE',
+      estadoNuevo: 'UTILIZADA',
+      motivo: 'LLEGADA_CONFIRMADA',
+      idEvento,
+    });
+    await guardarUbicacion(tx, idSesion, previa.idZona, puesto ? `Puesto ${String(puesto).padStart(2, '0')}` : undefined, puesto);
+    return { ok: true as const };
+  });
+
+  if (!resultado.ok) {
+    throw new AppError(409, 'RETENCION_NO_VIGENTE', `La retención ya no está vigente (estado: ${resultado.estado}).`);
+  }
+  const utilizada = (await repo.buscarPorId(pool, idRetencion))!;
+  notificador.publicarZonasActualizadas();
+  notificador.publicarRetencion(idSesion, { tipo: 'UTILIZADA', retencion: utilizada });
+  return utilizada;
 }
 
 /** Retención vigente de la sesión (o null). Antes expira las vencidas para no mostrar datos falsos (RF-05). */

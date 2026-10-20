@@ -8,20 +8,27 @@ export interface UbicacionVista {
   zonaNombre: string;
   pisoCodigo: string;
   pisoNombre: string;
+  puesto: number | null;
   referencia: string | null;
   registradaEn: Date;
 }
 
 /** RF-09: guarda (o reemplaza) dónde dejó el vehículo el conductor. Solo datos mínimos: zona y una referencia libre. */
-export async function guardarUbicacion(db: Db, idSesion: string, idZona: number, referencia?: string): Promise<UbicacionVista> {
+export async function guardarUbicacion(
+  db: Db,
+  idSesion: string,
+  idZona: number,
+  referencia?: string,
+  puesto?: number,
+): Promise<UbicacionVista> {
   const zona = await db.query('SELECT 1 FROM zona WHERE id_zona = $1', [idZona]);
   if (zona.rows.length === 0) throw new AppError(404, 'ZONA_NO_EXISTE', 'La zona indicada no existe.');
   await db.query(
-    `INSERT INTO ubicacion_vehiculo (id_ubicacion, id_sesion, id_zona, referencia)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO ubicacion_vehiculo (id_ubicacion, id_sesion, id_zona, puesto, referencia)
+     VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (id_sesion) DO UPDATE
-       SET id_zona = EXCLUDED.id_zona, referencia = EXCLUDED.referencia, registrada_en = now()`,
-    [randomUUID(), idSesion, idZona, referencia || null],
+       SET id_zona = EXCLUDED.id_zona, puesto = EXCLUDED.puesto, referencia = EXCLUDED.referencia, registrada_en = now()`,
+    [randomUUID(), idSesion, idZona, puesto ?? null, referencia || null],
   );
   return (await obtenerUbicacion(db, idSesion))!;
 }
@@ -34,11 +41,12 @@ export async function obtenerUbicacion(db: Db, idSesion: string): Promise<Ubicac
     zona_nombre: string;
     piso_codigo: string;
     piso_nombre: string;
+    puesto: number | null;
     referencia: string | null;
     registrada_en: Date;
   }>(
     `SELECT u.id_zona, z.codigo AS zona_codigo, z.nombre AS zona_nombre, p.codigo AS piso_codigo,
-            p.nombre AS piso_nombre, u.referencia, u.registrada_en
+            p.nombre AS piso_nombre, u.puesto, u.referencia, u.registrada_en
      FROM ubicacion_vehiculo u
      JOIN zona z ON z.id_zona = u.id_zona
      JOIN piso p ON p.id_piso = z.id_piso
@@ -53,6 +61,7 @@ export async function obtenerUbicacion(db: Db, idSesion: string): Promise<Ubicac
     zonaNombre: f.zona_nombre,
     pisoCodigo: f.piso_codigo,
     pisoNombre: f.piso_nombre,
+    puesto: f.puesto,
     referencia: f.referencia,
     registradaEn: f.registrada_en,
   };

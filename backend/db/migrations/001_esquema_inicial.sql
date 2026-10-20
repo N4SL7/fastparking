@@ -34,7 +34,7 @@ CREATE TABLE sesion_visita (
   CONSTRAINT ck_sesion_vigencia CHECK (expira_en > creada_en)
 );
 
--- RETENCION: retención temporal simulada sobre una zona (RF-04, RF-05, RF-08, RF-15)
+-- RETENCION: retención temporal simulada sobre una zona (RF-04, RF-05, RF-08, RF-15, RF-16)
 CREATE TABLE retencion (
   id_retencion         UUID         PRIMARY KEY,
   id_sesion            UUID         NOT NULL REFERENCES sesion_visita(id_sesion),
@@ -45,7 +45,7 @@ CREATE TABLE retencion (
   vence_en             TIMESTAMPTZ  NOT NULL,
   cerrada_en           TIMESTAMPTZ,
   motivo_cierre        VARCHAR(60),
-  CONSTRAINT ck_retencion_estado CHECK (estado IN ('VIGENTE','CANCELADA','EXPIRADA','REASIGNADA','INVALIDADA')),
+  CONSTRAINT ck_retencion_estado CHECK (estado IN ('VIGENTE','CANCELADA','EXPIRADA','REASIGNADA','INVALIDADA','UTILIZADA')),
   CONSTRAINT ck_retencion_vence CHECK (vence_en > creada_en),
   CONSTRAINT ck_retencion_cierre CHECK ((estado = 'VIGENTE') = (cerrada_en IS NULL))
 );
@@ -53,13 +53,13 @@ CREATE TABLE retencion (
 CREATE UNIQUE INDEX uq_retencion_vigente_por_sesion ON retencion (id_sesion) WHERE estado = 'VIGENTE';
 CREATE INDEX ix_retencion_zona_vigente ON retencion (id_zona) WHERE estado = 'VIGENTE';
 
--- EVENTO_OCUPACION: eventos normalizados recibidos por el adaptador (RF-06, RF-12)
+-- EVENTO_OCUPACION: eventos normalizados (RF-06, RF-12). Fuentes: SIMULADOR (adaptador) o CONDUCTOR (llegada confirmada, RF-16)
 CREATE TABLE evento_ocupacion (
   id_evento    UUID         PRIMARY KEY,           -- lo asigna la fuente; repetirlo no duplica el efecto (idempotencia)
   id_zona      SMALLINT     NOT NULL REFERENCES zona(id_zona),
   tipo         VARCHAR(8)   NOT NULL CHECK (tipo IN ('ENTRADA','SALIDA')),
   cantidad     SMALLINT     NOT NULL CHECK (cantidad > 0),
-  fuente       VARCHAR(12)  NOT NULL CHECK (fuente IN ('SIMULADOR')),
+  fuente       VARCHAR(12)  NOT NULL CHECK (fuente IN ('SIMULADOR','CONDUCTOR')),
   ocurrido_en  TIMESTAMPTZ  NOT NULL,
   recibido_en  TIMESTAMPTZ  NOT NULL DEFAULT now(),
   resultado    VARCHAR(20)  NOT NULL CHECK (resultado IN ('APLICADO','DESCARTADO_TARDIO'))
@@ -77,11 +77,12 @@ CREATE TABLE historial_retencion (
 );
 CREATE INDEX ix_historial_retencion ON historial_retencion (id_retencion);
 
--- UBICACION_VEHICULO: dónde dejó el vehículo el conductor (RF-09). Una por sesión.
+-- UBICACION_VEHICULO: dónde dejó el vehículo el conductor (RF-09, RF-16). Una por sesión.
 CREATE TABLE ubicacion_vehiculo (
   id_ubicacion   UUID         PRIMARY KEY,
   id_sesion      UUID         NOT NULL UNIQUE REFERENCES sesion_visita(id_sesion),
   id_zona        SMALLINT     NOT NULL REFERENCES zona(id_zona),
+  puesto         SMALLINT     CHECK (puesto > 0),   -- número de puesto ilustrativo dentro de la zona
   referencia     VARCHAR(80),
   registrada_en  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );

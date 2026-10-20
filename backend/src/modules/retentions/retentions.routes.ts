@@ -2,7 +2,13 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../../shared/errors.js';
 import { requerirSesion } from '../sessions/sessions.routes.js';
-import { cancelarRetencion, obtenerRetencion, obtenerRetencionActual, solicitarRetencion } from './retentions.service.js';
+import {
+  cancelarRetencion,
+  confirmarLlegada,
+  obtenerRetencion,
+  obtenerRetencionActual,
+  solicitarRetencion,
+} from './retentions.service.js';
 
 export const retentionsRouter = Router();
 retentionsRouter.use(requerirSesion);
@@ -40,5 +46,16 @@ retentionsRouter.post(
   '/:id/cancel',
   asyncHandler(async (req, res) => {
     res.json(await cancelarRetencion(res.locals.idSesion, IdSchema.parse(req.params.id)));
+  }),
+);
+
+const LlegadaSchema = z.object({ puesto: z.number().int().min(1).max(99).optional() });
+
+/** POST /api/retentions/:id/arrive — RF-16: llegada confirmada tras la navegación simulada */
+retentionsRouter.post(
+  '/:id/arrive',
+  asyncHandler(async (req, res) => {
+    const { puesto } = LlegadaSchema.parse(req.body ?? {});
+    res.json(await confirmarLlegada(res.locals.idSesion, IdSchema.parse(req.params.id), puesto));
   }),
 );

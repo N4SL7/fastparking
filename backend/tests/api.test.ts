@@ -41,14 +41,14 @@ describe('CP-02 zonas con estados mixtos (RF-02, RF-03, RF-13)', () => {
 });
 
 describe('CP-03 solicitar retención (RF-04)', () => {
-  it('crea una retención VIGENTE con vencimiento a 10 minutos y descuenta el cupo', async () => {
+  it('crea una retención VIGENTE con vencimiento a 7 minutos y descuenta el cupo', async () => {
     const sesion = await crearSesion();
     const antes = await zona('S1-C');
     const res = await retener(sesion, antes.idZona);
     expect(res.status).toBe(201);
     expect(res.body.estado).toBe('VIGENTE');
     const minutos = (Date.parse(res.body.venceEn) - Date.parse(res.body.creadaEn)) / 60_000;
-    expect(minutos).toBe(10);
+    expect(minutos).toBe(7);
     expect(res.body.aviso).toContain('no garantiza');
     expect((await zona('S1-C')).cupoLogico).toBe(antes.cupoLogico - 1);
   });
@@ -165,6 +165,27 @@ describe('CP-07 cancelar retención (RF-08)', () => {
     const { body } = await retener(a, 3);
     const res = await request(app).post(`/api/retentions/${body.idRetencion}/cancel`).set('x-session-id', b);
     expect(res.status).toBe(404);
+  });
+});
+
+describe('CP-10 llegada confirmada (RF-16)', () => {
+  it('la retención pasa a UTILIZADA, la zona suma un vehículo y se guarda la ubicación con el puesto', async () => {
+    const sesion = await crearSesion();
+    const antes = await zona('S1-C');
+    const { body } = await retener(sesion, antes.idZona);
+    const res = await request(app).post(`/api/retentions/${body.idRetencion}/arrive`).set('x-session-id', sesion).send({ puesto: 4 });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ estado: 'UTILIZADA', motivoCierre: 'LLEGADA_CONFIRMADA' });
+    const despues = await zona('S1-C');
+    expect(despues.ocupados).toBe(antes.ocupados + 1);
+    expect(despues.retenidas).toBe(0);
+    expect(despues.cupoLogico).toBe(antes.cupoLogico - 1);
+    const ubicacion = await request(app).get('/api/vehicle-location').set('x-session-id', sesion);
+    expect(ubicacion.body.ubicacion).toMatchObject({ zonaCodigo: 'S1-C', puesto: 4, referencia: 'Puesto 04' });
+    const { rows } = await pool.query(`SELECT fuente FROM evento_ocupacion WHERE id_zona = $1`, [antes.idZona]);
+    expect(rows.map((r: { fuente: string }) => r.fuente)).toEqual(['CONDUCTOR']);
+    const otra = await request(app).post(`/api/retentions/${body.idRetencion}/arrive`).set('x-session-id', sesion).send({});
+    expect(otra.status).toBe(409);
   });
 });
 

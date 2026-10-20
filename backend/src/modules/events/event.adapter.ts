@@ -11,13 +11,13 @@ export interface EventoNormalizado {
   codigoZona: string;
   tipo: 'ENTRADA' | 'SALIDA';
   cantidad: number;
-  fuente: 'SIMULADOR';
+  fuente: 'SIMULADOR' | 'CONDUCTOR';
   ocurridoEn: Date;
 }
 
 /** Contrato de una fuente de ocupación. Solo existe la implementación simulada (ver /simulator). */
 export interface FuenteOcupacion {
-  readonly nombre: EventoNormalizado['fuente'];
+  readonly nombre: 'SIMULADOR';
   normalizar(mensaje: unknown): EventoNormalizado;
 }
 

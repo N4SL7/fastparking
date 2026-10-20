@@ -23,8 +23,8 @@ export const config = {
   databaseUrl,
   /** Clave que debe enviar el simulador en la cabecera x-simulator-key. Vacía = simulador deshabilitado. */
   simulatorApiKey: process.env.SIMULATOR_API_KEY ?? '',
-  /** RN-02 / D-04: vigencia de una retención temporal simulada. */
-  retentionMinutes: entero('RETENTION_MINUTES', 10),
+  /** RN-02 / D-04: vigencia de una retención temporal simulada (flujo de 7 minutos). */
+  retentionMinutes: entero('RETENTION_MINUTES', 7),
   /** D-02: duración de una sesión anónima creada desde el QR. */
   sessionHours: entero('SESSION_HOURS', 12),
   /** RF-05: cada cuánto se ejecuta el planificador de expiraciones. */
