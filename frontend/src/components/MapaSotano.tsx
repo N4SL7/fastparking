@@ -9,7 +9,7 @@ import { CamaraGeneral, CamaraSeguimiento, Lienzo3D } from './3d/Sotano3D';
 import { IconoNavegar } from './iconos';
 
 const ALTO_ESCENA = 540;
-const VELOCIDAD = 95; // unidades de plano por segundo (simulación acelerada)
+const VELOCIDAD = 42; // unidades de plano por segundo (≈ 5 m/s: velocidad de parqueadero)
 const dos = (n: number) => String(n).padStart(2, '0');
 
 interface Seleccion {
@@ -49,6 +49,8 @@ export function MapaSotano({
   const [aviso, setAviso] = useState<string | null>(null);
   const [intruso, setIntruso] = useState<{ idZona: number; numero: number } | null>(null);
   const raf = useRef<number>();
+  // El avance de la flecha vive en una referencia: la escena 3D lo lee en cada cuadro sin volver a renderizar React.
+  const avance = useRef(0);
   const escena = useRef<HTMLDivElement>(null);
   const calidad = useMemo(detectarCalidad, []);
   const previa = useRef<Retencion | null>(null);
@@ -67,6 +69,7 @@ export function MapaSotano({
       reNavegar.current = progreso !== null;
     }
     cancelAnimationFrame(raf.current!);
+    avance.current = 0;
     setProgreso(null);
     setSeleccion(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,10 +89,17 @@ export function MapaSotano({
   const destino = useMemo(() => {
     for (const z of plano) {
       const p = z.puestos.find((x) => x.estado === 'mio');
-      if (p) return { puesto: p, ruta: rutaHastaPuesto(p, z.lado), zona: z.zona };
+      if (p) return { puesto: p, lado: z.lado, zona: z.zona };
     }
     return null;
   }, [plano]);
+  // La ruta solo cambia si cambia el puesto destino (no con cada actualización de ocupación).
+  const claveDestino = destino ? `${destino.zona.idZona}-${destino.puesto.numero}` : '';
+  const ruta = useMemo(
+    () => (destino ? rutaHastaPuesto(destino.puesto, destino.lado) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [claveDestino],
+  );
 
   useEffect(() => {
     if (reNavegar.current && destino) {
@@ -100,14 +110,22 @@ export function MapaSotano({
   }, [destino?.zona.idZona, destino?.puesto.numero]);
 
   function navegar() {
-    if (!destino) return;
+    if (!destino || !ruta) return;
     cancelAnimationFrame(raf.current!);
-    const duracion = Math.max(6000, (longitud(destino.ruta) / VELOCIDAD) * 1000);
+    const duracion = Math.max(12000, (longitud(ruta) / VELOCIDAD) * 1000);
     escena.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     const inicio = performance.now();
+    let ultimoRender = 0;
+    avance.current = 0;
+    setProgreso(0);
     const paso = (ahora: number) => {
       const t = Math.min(1, (ahora - inicio) / duracion);
-      setProgreso(t);
+      avance.current = t;
+      // El HUD (instrucción y metros) se actualiza ~6 veces por segundo; la flecha, en cada cuadro.
+      if (t >= 1 || ahora - ultimoRender > 160) {
+        ultimoRender = ahora;
+        setProgreso(t);
+      }
       if (t < 1) raf.current = requestAnimationFrame(paso);
     };
     raf.current = requestAnimationFrame(paso);
@@ -122,9 +140,9 @@ export function MapaSotano({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [iniciarNavegacion, destino]);
 
-  const navegando = progreso !== null && destino !== null;
+  const navegando = progreso !== null && destino !== null && ruta !== null;
   const llego = navegando && progreso! >= 1;
-  const instruccion = navegando ? siguienteInstruccion(destino!.ruta, progreso!) : null;
+  const instruccion = navegando ? siguienteInstruccion(ruta!, progreso!) : null;
 
   function tocarPuesto(z: ZonaEnPlano, p: Puesto) {
     if (navegando || soloLectura) return;
@@ -202,9 +220,9 @@ export function MapaSotano({
             idZonaDestacada={retencion?.idZona ?? seleccion?.zona.idZona ?? null}
             onTocarPuesto={tocarPuesto}
           />
-          {destino && <Ruta3D ruta={destino.ruta} progreso={progreso ?? 0} mostrarFlecha={navegando} />}
+          {ruta && <Ruta3D ruta={ruta} avance={avance} mostrarFlecha={navegando} />}
           {navegando ? (
-            <CamaraSeguimiento ruta={destino!.ruta} progreso={progreso!} />
+            <CamaraSeguimiento ruta={ruta!} avance={avance} />
           ) : (
             <CamaraGeneral foco={foco} />
           )}

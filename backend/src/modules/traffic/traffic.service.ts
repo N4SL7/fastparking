@@ -15,7 +15,7 @@ export interface EstadoTrafico {
   eventosGenerados: number;
 }
 
-const estado: EstadoTrafico = { activo: false, intervaloMs: 3_000, eventosGenerados: 0 };
+const estado: EstadoTrafico = { activo: false, intervaloMs: 6_000, eventosGenerados: 0 };
 let temporizador: NodeJS.Timeout | null = null;
 let apagadoAutomatico: NodeJS.Timeout | null = null;
 const APAGADO_AUTOMATICO_MS = 20 * 60_000; // evita consumir la base de datos gratuita si alguien olvida apagarlo

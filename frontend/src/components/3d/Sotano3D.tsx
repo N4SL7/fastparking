@@ -7,7 +7,7 @@ import type { MapControls as MapControlsImpl } from 'three-stdlib';
 import type { PerfilCalidad } from '../../lib/calidad';
 import { puntoEn, type Punto } from '../../lib/plano';
 import { COLOR, aX, aZ } from './escena';
-import { yawDeRumbo } from './Ruta3D';
+import { girarHacia, yawDeRumbo } from './Ruta3D';
 
 /** Luces y posprocesado según la calidad (5.4). */
 export function Ambiente({ calidad, niebla = true }: { calidad: PerfilCalidad; niebla?: boolean }) {
@@ -69,7 +69,7 @@ export function Lienzo3D({
  * Cámara de vista general: el conductor arrastra para recorrer el sótano, pellizca para acercar e inclina
  * con dos dedos. Al cambiar el foco (puesto reservado), la cámara se desliza hasta él.
  */
-export function CamaraGeneral({ foco, distancia = 44 }: { foco: [number, number]; distancia?: number }) {
+export function CamaraGeneral({ foco, distancia = 78 }: { foco: [number, number]; distancia?: number }) {
   const controles = useRef<MapControlsImpl>(null);
   const { camera } = useThree();
   const objetivo = useRef(new Vector3(foco[0], 0, foco[1]));
@@ -108,8 +108,8 @@ export function CamaraGeneral({ foco, distancia = 44 }: { foco: [number, number]
       enableDamping
       dampingFactor={0.12}
       screenSpacePanning={false}
-      minDistance={12}
-      maxDistance={110}
+      minDistance={18}
+      maxDistance={140}
       minPolarAngle={0.25}
       maxPolarAngle={1.2}
       onStart={() => (animando.current = false)}
@@ -118,17 +118,22 @@ export function CamaraGeneral({ foco, distancia = 44 }: { foco: [number, number]
 }
 
 /** Cámara de navegación: sigue a la flecha por detrás y por encima, como un GPS (RF-10). */
-export function CamaraSeguimiento({ ruta, progreso }: { ruta: Punto[]; progreso: number }) {
+export function CamaraSeguimiento({ ruta, avance }: { ruta: Punto[]; avance: { current: number } }) {
   const { camera } = useThree();
-  const mirar = useRef(new Vector3());
-  useFrame(() => {
-    const p = puntoEn(ruta, progreso);
-    const yaw = yawDeRumbo(p.rumbo);
-    const dir = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+  const mirar = useRef<Vector3 | null>(null);
+  const yaw = useRef<number | null>(null);
+  useFrame((_, dt) => {
+    const p = puntoEn(ruta, avance.current);
+    const objetivo = yawDeRumbo(p.rumbo);
+    // La cámara gira más despacio que la flecha: así no "salta" en las esquinas.
+    yaw.current = yaw.current === null ? objetivo : girarHacia(yaw.current, objetivo, Math.min(1, dt * 2.2));
+    const dir = new Vector3(Math.cos(yaw.current), 0, -Math.sin(yaw.current));
     const pos = new Vector3(aX(p.x), 0, aZ(p.y));
-    const deseada = pos.clone().addScaledVector(dir, -11).add(new Vector3(0, 10.5, 0));
-    camera.position.lerp(deseada, 0.06);
-    mirar.current.lerp(pos.clone().addScaledVector(dir, 5), 0.08);
+    const deseada = pos.clone().addScaledVector(dir, -17).add(new Vector3(0, 16, 0));
+    camera.position.lerp(deseada, Math.min(1, dt * 3));
+    const foco = pos.clone().addScaledVector(dir, 6);
+    if (!mirar.current) mirar.current = foco.clone();
+    mirar.current.lerp(foco, Math.min(1, dt * 4));
     camera.lookAt(mirar.current);
   });
   return null;

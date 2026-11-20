@@ -11,6 +11,13 @@ export const yawDeRumbo = (rumbo: number) => {
   return Math.atan2(Math.cos(r), Math.sin(r));
 };
 
+/** Interpola un ángulo por el camino más corto. */
+export function girarHacia(actual: number, objetivo: number, f: number) {
+  let d = ((objetivo - actual + Math.PI) % (2 * Math.PI)) - Math.PI;
+  if (d < -Math.PI) d += 2 * Math.PI;
+  return actual + d * f;
+}
+
 function formaChevron() {
   const s = new Shape();
   s.moveTo(-0.35, -0.55);
@@ -35,7 +42,7 @@ function formaFlecha() {
  * Ruta de navegación (RF-10): cinta teal sobre el piso, chevrones animados en el sentido de avance y la
  * flecha 3D del conductor. La ruta es una simulación, no una localización en vivo (RN-09).
  */
-export function Ruta3D({ ruta, progreso, mostrarFlecha }: { ruta: Punto[]; progreso: number; mostrarFlecha: boolean }) {
+export function Ruta3D({ ruta, avance, mostrarFlecha }: { ruta: Punto[]; avance: { current: number }; mostrarFlecha: boolean }) {
   const puntos = useMemo(() => ruta.map((p) => [aX(p.x), 0.08, aZ(p.y)] as [number, number, number]), [ruta]);
   const chevron = useMemo(formaChevron, []);
   const flecha = useMemo(formaFlecha, []);
@@ -45,9 +52,11 @@ export function Ruta3D({ ruta, progreso, mostrarFlecha }: { ruta: Punto[]; progr
   const marcador = useRef<Group>(null);
   const anillo = useRef<Mesh>(null);
   const destino = ruta[ruta.length - 1];
+  const yawSuave = useRef<number | null>(null);
 
-  useFrame(({ clock }) => {
-    const desfase = (clock.elapsedTime * 0.35) % 1;
+  useFrame(({ clock }, dt) => {
+    const progreso = avance.current;
+    const desfase = (clock.elapsedTime * 0.18) % 1;
     for (let i = 0; i < N; i++) {
       const m = chevronRefs.current[i];
       if (!m) continue;
@@ -62,7 +71,10 @@ export function Ruta3D({ ruta, progreso, mostrarFlecha }: { ruta: Punto[]; progr
     if (marcador.current) {
       const p = puntoEn(ruta, progreso);
       marcador.current.position.set(aX(p.x), 0.45 + Math.sin(clock.elapsedTime * 3) * 0.08, aZ(p.y));
-      marcador.current.rotation.set(0, yawDeRumbo(p.rumbo), 0);
+      // El giro en las esquinas es suave (antes saltaba 90° de golpe).
+      const objetivo = yawDeRumbo(p.rumbo);
+      yawSuave.current = yawSuave.current === null ? objetivo : girarHacia(yawSuave.current, objetivo, Math.min(1, dt * 6));
+      marcador.current.rotation.set(0, yawSuave.current, 0);
     }
     if (anillo.current) {
       const s = 1 + ((clock.elapsedTime * 0.8) % 1) * 1.6;

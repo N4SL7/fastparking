@@ -1208,23 +1208,23 @@ p {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 64px;
-  padding: 6px 10px;
-  border-radius: 12px;
+  min-width: 44px;
+  padding: 4px 8px;
+  border-radius: 10px;
   background: rgb(8 62 77 / 0.88);
   color: #fff;
-  font: 600 13px/1.15 Inter, system-ui, sans-serif;
+  font: 600 11px/1.15 Inter, system-ui, sans-serif;
   white-space: nowrap;
   box-shadow: 0 6px 18px rgb(8 62 77 / 0.25);
   backdrop-filter: blur(6px);
   user-select: none;
 }
 .etiqueta-3d strong {
-  font-size: 20px;
+  font-size: 15px;
   letter-spacing: 0.04em;
 }
 .etiqueta-3d span {
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 500;
   opacity: 0.85;
 }

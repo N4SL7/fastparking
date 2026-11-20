@@ -11,11 +11,12 @@ import { qrComoPath } from '../lib/qr';
 import type { Disponibilidad, EstadoDemo } from '../types';
 import { pedirDemo } from './demoApi';
 
+const CERO = { current: 0 };
 const SEPARACION = 46; // distancia entre pisos en la vista general (unidades 3D)
 const VELOCIDADES = [
-  { texto: '1×', ms: 3000 },
-  { texto: '2×', ms: 1500 },
-  { texto: '5×', ms: 700 },
+  { texto: '1×', ms: 6000 },
+  { texto: '2×', ms: 3000 },
+  { texto: '5×', ms: 1200 },
 ];
 const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const dos = (n: number | null) => String(n ?? 0).padStart(2, '0');
@@ -26,8 +27,8 @@ function Camara({ vista, pisos }: { vista: Vista; pisos: number }) {
   const { camera } = useThree();
   const x = vista === 'general' ? 0 : (vista - (pisos - 1) / 2) * SEPARACION;
   useEffect(() => {
-    if (vista === 'general') camera.position.set(0, 95, 88);
-    else camera.position.set(x + 4, 52, 46);
+    if (vista === 'general') camera.position.set(0, 120, 112);
+    else camera.position.set(x + 4, 78, 72);
     camera.lookAt(x, 0, 0);
   }, [vista, x, camera]);
   return <OrbitControls key={String(vista)} target={[x, 0, 0]} enableDamping maxPolarAngle={1.25} minDistance={14} maxDistance={190} makeDefault />;
@@ -212,7 +213,7 @@ export function Simulacion() {
                   {plano.flatMap((z) =>
                     z.puestos
                       .filter((p) => p.estado === 'mio')
-                      .map((p) => <Ruta3D key={`${z.zona.idZona}-${p.numero}`} ruta={rutaHastaPuesto(p, z.lado)} progreso={0} mostrarFlecha={false} />),
+                      .map((p) => <Ruta3D key={`${z.zona.idZona}-${p.numero}`} ruta={rutaHastaPuesto(p, z.lado)} avance={CERO} mostrarFlecha={false} />),
                   )}
                 </group>
               );

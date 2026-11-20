@@ -50,7 +50,7 @@ export interface Cuadro {
   t: number; // segundos desde el inicio de la animación
 }
 
-const VELOCIDAD = 130; // unidades de plano por segundo (simulación acelerada)
+const VELOCIDAD = 50; // unidades de plano por segundo (≈ 6 m/s, ritmo realista dentro de un parqueadero)
 const ABAJO = -Math.PI / 2; // mirando hacia +Z (hacia el fondo del sótano)
 const ARRIBA = Math.PI / 2; // mirando hacia -Z (hacia la rampa)
 
@@ -59,7 +59,7 @@ function cuadros(puntos: { x: number; y: number; yaw: number }[]): Cuadro[] {
   return puntos.map((p, i) => {
     if (i > 0) {
       const a = puntos[i - 1];
-      t += Math.max(0.7, Math.hypot(p.x - a.x, p.y - a.y) / VELOCIDAD);
+      t += Math.max(1.4, Math.hypot(p.x - a.x, p.y - a.y) / VELOCIDAD);
     }
     return { x: aX(p.x), z: aZ(p.y), yaw: p.yaw, t };
   });
