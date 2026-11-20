@@ -36,8 +36,9 @@ export const config = {
   /** D-19: proveedor LLM compatible con la API de OpenAI (Gemini, Groq, OpenAI...). Sin clave = plan B por reglas. */
   llm: {
     baseUrl: (process.env.LLM_BASE_URL ?? 'https://generativelanguage.googleapis.com/v1beta/openai').replace(/\/+$/, ''),
-    apiKey: process.env.LLM_API_KEY ?? '',
-    model: process.env.LLM_MODEL ?? 'gemini-2.5-flash',
+    // Se limpian espacios, saltos de línea y comillas que suelen colarse al pegar la clave en un panel.
+    apiKey: (process.env.LLM_API_KEY ?? '').trim().replace(/^["']|["']$/g, '').trim(),
+    model: (process.env.LLM_MODEL ?? 'gemini-2.5-flash').trim(),
     timeoutMs: entero('LLM_TIMEOUT_MS', 8_000),
   },
   /** D-24: PIN de los controles de la demostración (/simulacion). Vacío = controles deshabilitados. */

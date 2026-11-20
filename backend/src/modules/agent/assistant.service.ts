@@ -4,7 +4,7 @@ import { obtenerUbicacion } from '../locations/locations.service.js';
 import { cotizar } from '../payments/payments.service.js';
 import { obtenerRetencionActual } from '../retentions/retentions.service.js';
 import { listarZonas } from '../zones/availability.service.js';
-import { obtenerProveedorLLM, type DefinicionHerramienta, type MensajeLLM } from './llm.provider.js';
+import { obtenerProveedorLLM, registrarErrorLLM, type DefinicionHerramienta, type MensajeLLM } from './llm.provider.js';
 
 /**
  * Asistente de ayuda del conductor (RF-21) — segundo agente de FastParking.
@@ -27,18 +27,21 @@ const COP = (n: number) => `$${n.toLocaleString('es-CO')}`;
 const hora = (d: Date) => d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' });
 const dos = (n: number | null) => String(n ?? 0).padStart(2, '0');
 
+/** Gemini rechaza esquemas OBJECT sin propiedades: se declara un parámetro opcional inofensivo. */
+const SIN_PARAMETROS = { type: 'object', properties: { motivo: { type: 'string', description: 'Opcional: por qué se consulta.' } } };
+
 export const HERRAMIENTAS_ASISTENTE: DefinicionHerramienta[] = [
   {
     type: 'function',
-    function: { name: 'ver_mi_vehiculo', description: 'Dónde quedó estacionado el vehículo del conductor y su hora de entrada.', parameters: { type: 'object', properties: {} } },
+    function: { name: 'ver_mi_vehiculo', description: 'Dónde quedó estacionado el vehículo del conductor y su hora de entrada.', parameters: SIN_PARAMETROS },
   },
   {
     type: 'function',
-    function: { name: 'ver_mi_reserva', description: 'Retención temporal vigente del conductor (zona, puesto y minutos restantes).', parameters: { type: 'object', properties: {} } },
+    function: { name: 'ver_mi_reserva', description: 'Retención temporal vigente del conductor (zona, puesto y minutos restantes).', parameters: SIN_PARAMETROS },
   },
   {
     type: 'function',
-    function: { name: 'ver_mi_cuenta', description: 'Tiempo de parqueo, tarifa ilustrativa y valor a pagar (o el pago ya hecho).', parameters: { type: 'object', properties: {} } },
+    function: { name: 'ver_mi_cuenta', description: 'Tiempo de parqueo, tarifa ilustrativa y valor a pagar (o el pago ya hecho).', parameters: SIN_PARAMETROS },
   },
   {
     type: 'function',
@@ -174,8 +177,8 @@ export async function responderPregunta(idSesion: string, pregunta: string, hist
         conversacion.push({ role: 'tool', tool_call_id: ll.id, content: fn ? await fn(args) : '{"error":"herramienta desconocida"}' });
       }
     }
-  } catch {
-    /* error o tiempo agotado: plan B */
+  } catch (err) {
+    registrarErrorLLM('asistente', controlador.signal.aborted ? new Error(`Tiempo agotado (${config.llm.timeoutMs} ms)`) : err);
   } finally {
     clearTimeout(temporizador);
   }

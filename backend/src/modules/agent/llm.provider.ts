@@ -53,6 +53,14 @@ export class ProveedorCompatibleOpenAI implements ProveedorLLM {
   }
 }
 
+/** Último error del LLM (para diagnóstico en /api/demo/estado y en los logs de Render). Nunca incluye la clave. */
+export let ultimoErrorLLM: { mensaje: string; en: string } | null = null;
+export function registrarErrorLLM(origen: string, err: unknown): void {
+  const mensaje = `${origen}: ${(err as Error)?.message ?? String(err)}`.replace(/AIza[0-9A-Za-z_-]+/g, '[clave]').slice(0, 400);
+  ultimoErrorLLM = { mensaje, en: new Date().toISOString() };
+  console.warn('[llm]', mensaje);
+}
+
 let proveedorDePrueba: ProveedorLLM | null | undefined;
 
 /** Solo para pruebas automatizadas: reemplaza el proveedor (null = sin LLM). */

@@ -1,7 +1,7 @@
 import { config } from '../../config.js';
 import type { PuestoCandidato } from '../zones/puestos.service.js';
 import { distanciaEstimada, mensajeReglas, ordenarCandidatos, type Origen } from './agent.rules.js';
-import { obtenerProveedorLLM, type DefinicionHerramienta, type MensajeLLM } from './llm.provider.js';
+import { obtenerProveedorLLM, registrarErrorLLM, type DefinicionHerramienta, type MensajeLLM } from './llm.provider.js';
 
 /**
  * Agente de reasignación (RF-18, D-18). Ciclo: el LLM PIENSA → USA HERRAMIENTAS → el backend VALIDA → se AVISA.
@@ -195,6 +195,7 @@ export async function decidirReasignacion(
     }
   } catch (err) {
     const error = controlador.signal.aborted ? `Tiempo agotado (${config.llm.timeoutMs} ms)` : (err as Error).message.slice(0, 200);
+    registrarErrorLLM('reasignacion', new Error(error));
     return decidirPorReglas(ctx, inicio, { modelo: proveedor.modelo, pasos, propuesta, error });
   } finally {
     clearTimeout(temporizador);
