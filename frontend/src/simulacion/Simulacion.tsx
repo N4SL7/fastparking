@@ -291,7 +291,7 @@ export function Simulacion() {
                   </div>
                 </div>
                 <button type="button" className="sim__intruso" onClick={intruso}>
-                  🚗 Carro intruso
+                  Carro intruso
                   <small>Ocupa el puesto que reservó el conductor</small>
                 </button>
               </>

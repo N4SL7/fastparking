@@ -1,6 +1,6 @@
 import type { EstadoZona } from '../types';
 
-export function Encabezado({ tiquete }: { tiquete?: string }) {
+export function Encabezado({ tiquete, onSalir }: { tiquete?: string; onSalir?: () => void }) {
   return (
     <header className="encabezado">
       <div className="encabezado__marca">
@@ -11,9 +11,16 @@ export function Encabezado({ tiquete }: { tiquete?: string }) {
         </div>
       </div>
       {tiquete && (
-        <span className="chip chip--claro" title="Tiquete de esta sesión">
-          {tiquete}
-        </span>
+        <div className="encabezado__acciones">
+          <span className="chip chip--claro" title="Tiquete de esta sesión">
+            {tiquete}
+          </span>
+          {onSalir && (
+            <button type="button" className="encabezado__salir" onClick={onSalir}>
+              Salir
+            </button>
+          )}
+        </div>
       )}
     </header>
   );

@@ -189,7 +189,16 @@ export default function App() {
 
   return (
     <div className="app">
-      <Encabezado tiquete={sesion.tiquete.token} />
+      <Encabezado
+        tiquete={sesion.tiquete.token}
+        onSalir={() => {
+          // Vuelve a la máquina de ingreso: se muestra un tiquete nuevo con su código QR.
+          setRetencion(null);
+          setUbicacion(null);
+          setPestana('inicio');
+          sesion.nuevoIngreso();
+        }}
+      />
       <main className="contenedor">
         <Notificaciones avisos={avisos} onCerrar={(id) => setAvisos((a) => a.filter((x) => x.id !== id))} />
 

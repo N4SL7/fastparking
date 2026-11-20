@@ -29,6 +29,8 @@ export const COLOR = {
   ruta: '#12b5cb',
   /** Carro del conductor de FastParking (elegido por la autora): vinotinto. */
   conductor: '#7b1e3a',
+  /** Carro intruso (no usa FastParking): naranja. */
+  carroIntruso: '#f97316',
 };
 
 /** Paleta sobria de carros: blanco, grafito, plata, negro; 1 de cada 8 en azul o rojo apagado. */

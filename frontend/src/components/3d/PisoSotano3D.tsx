@@ -263,6 +263,11 @@ export function PisoSotano3D({
   etiquetas?: boolean;
 }) {
   const [carros, retirar] = useCarros(plano, animarCarros);
+  // Los carros intrusos quedan naranja mientras sigan en el puesto que le quitaron al conductor.
+  const intrusos = useRef(new Set<string>());
+  if (intruso) intrusos.current.add(`${intruso.idZona}-${intruso.numero}`);
+  const colorDe = (c: CarroEnEscena) =>
+    c.propio ? COLOR.conductor : intrusos.current.has(c.clave) ? COLOR.carroIntruso : c.color;
   const via = useMemo(
     () => ({ x: aX(CARRIL.x + CARRIL.ancho / 2), ancho: CARRIL.ancho * ESCALA, z0: aZ(RAMPA.alto), z1: aZ(PLANO.alto - 10) }),
     [],
@@ -332,13 +337,13 @@ export function PisoSotano3D({
             key={`${c.clave}-${c.modo}`}
             trayecto={c.trayecto}
             inicio={c.inicio}
-            color={c.propio ? COLOR.conductor : c.color}
+            color={colorDe(c)}
             faros={calidad.faros}
             alTerminar={() => retirar(c.clave)}
           />
         ) : (
           <group key={c.clave} position={[aX(c.puesto.cx), 0, aZ(c.puesto.cy)]} rotation-y={yawEstacionado(c.lado)}>
-            <ModeloCarro color={c.propio ? COLOR.conductor : c.color} faros={false} resaltado={c.propio ? COLOR.mio : undefined} />
+            <ModeloCarro color={colorDe(c)} faros={false} resaltado={c.propio ? COLOR.mio : undefined} />
           </group>
         ),
       )}
