@@ -19,3 +19,18 @@
 | D-15 | Simulación de la máquina de ingreso con QR real | Demostrar RF-01 sin hardware del centro comercial | Pantalla Tiquete; no se almacena la placa |
 | D-16 | Navegación por pestañas: Inicio, Mapa, Mi vehículo, Billetera; el tiquete con QR es la pantalla de entrada | Flujo real: el QR está en la máquina de ingreso; la billetera concentra pago e historial | Diseño solo para celular (marco de teléfono en computador) |
 | D-17 | El conductor elige el puesto tocándolo en el mapa | Experiencia directa; la retención sigue siendo por zona (RN-01) y el puesto es ilustrativo | Columna `retencion.puesto` |
+
+## v2.0 — Integración de IA, simulación 3D y despliegue (20 nov 2026)
+
+| ID | Decisión | Motivo | Consecuencia |
+|---|---|---|---|
+| D-18 | **Agente LLM con herramientas** (tool calling) para reasignar, no solo para redactar mensajes | Un agente es un LLM que **actúa** usando herramientas: es el objetivo de la asignatura de IA | Módulo `backend/src/modules/agent`; herramientas `ver_puestos_libres`, `calcular_distancia`, `reasignar_puesto`, `avisar_conductor` |
+| D-19 | Proveedor **intercambiable** con la API compatible con OpenAI y `fetch` nativo (por defecto Gemini) | Sin dependencias nuevas ni atadura a un proveedor | Variables `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_TIMEOUT_MS` |
+| D-20 | **El backend manda, el LLM propone**: cada propuesta se valida con la zona bloqueada antes de aplicarse | Un LLM puede equivocarse o inventar puestos; la consistencia no puede depender de él (RNF-03) | `reasignar_puesto` responde error ante un puesto inválido; nunca se escribe sin validar |
+| D-21 | **Plan B por reglas** si no hay clave, hay error, se agota el tiempo o la propuesta es inválida | La reasignación es crítica y la demo no puede depender de internet ni de la cuota | `agent.rules.ts` (RN-14 por puesto); la retención nunca queda sin resolver |
+| D-22 | Entidad **DECISION_AGENTE** | Trazabilidad y auditoría de cada decisión de IA: motor, herramientas, propuesta, validez, latencia | Registro en vivo en `/simulacion` y evidencia para la sustentación |
+| D-23 | Entidad **PUESTO**: ocupación por puesto; la zona sigue siendo la unidad de cupo | La demo del carro intruso necesita saber qué puesto se ocupó | `zona.ocupados` = puestos ocupados (función `fp_ajustar_puestos`); índice único de puesto retenido |
+| D-24 | **Motor de tráfico en el servidor**, controlado desde `/simulacion` con `DEMO_PIN` | iPad y celular ven la misma ocupación; ninguna clave viaja al navegador | Módulo `backend/src/modules/traffic`; se apaga solo a los 20 min |
+| D-25 | 3D con **three + @react-three/fiber + @react-three/drei** | Estándar de 3D web, declarativo con React | Componentes en `frontend/src/components/3d` |
+| D-26 | Modelos 3D **procedurales** (sin archivos .glb de terceros) | Livianos, sin licencias y explicables | Carros y sótano construidos con geometrías simples |
+| D-27 | Despliegue en **Render** (un Web Service sirve API + PWA) y **Neon** (PostgreSQL) | HTTPS gratuito, redespliegue en cada push y QR público | `render.yaml`; URL https://fastparking.onrender.com |

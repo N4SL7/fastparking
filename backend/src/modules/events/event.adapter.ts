@@ -13,6 +13,8 @@ export interface EventoNormalizado {
   cantidad: number;
   fuente: 'SIMULADOR' | 'CONDUCTOR';
   ocurridoEn: Date;
+  /** v2.0 (D-23): si viene, el evento afecta a ESE puesto (ENTRADA = ocupar, SALIDA = liberar) y cantidad = 1. */
+  puesto?: number;
 }
 
 /** Contrato de una fuente de ocupación. Solo existe la implementación simulada (ver /simulator). */
@@ -26,6 +28,7 @@ const EventoSimuladorSchema = z.object({
   zona: z.string().trim().min(1).max(10),
   tipo: z.enum(['ENTRADA', 'SALIDA']),
   cantidad: z.number().int().min(1).max(50).default(1),
+  puesto: z.number().int().min(1).max(200).optional(),
   ocurridoEn: z.string().datetime({ offset: true }).optional(),
 });
 
@@ -37,8 +40,9 @@ export const fuenteSimulador: FuenteOcupacion = {
       idEvento: e.idEvento,
       codigoZona: e.zona.toUpperCase(),
       tipo: e.tipo,
-      cantidad: e.cantidad,
+      cantidad: e.puesto ? 1 : e.cantidad,
       fuente: 'SIMULADOR',
+      puesto: e.puesto,
       ocurridoEn: e.ocurridoEn ? new Date(e.ocurridoEn) : new Date(),
     };
   },

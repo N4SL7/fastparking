@@ -1,6 +1,7 @@
 import type { Db } from '../../db/pool.js';
 import { AppError } from '../../shared/errors.js';
 import { calcularCupoLogico, clasificarZona, type EstadoZona } from './availability.rules.js';
+import { estadosDePuestos } from './puestos.service.js';
 
 export interface ZonaVista {
   idZona: number;
@@ -74,14 +75,15 @@ export async function listarZonas(db: Db): Promise<ZonaVista[]> {
 /** Respuesta de GET /api/zones agrupada por piso (RF-02, RF-03, RF-13). */
 export async function obtenerDisponibilidad(db: Db) {
   const zonas = await listarZonas(db);
+  const puestos = await estadosDePuestos(db);
   const pisos = new Map<number, { idPiso: number; codigo: string; nombre: string; zonas: ZonaVista[] }>();
   for (const z of zonas) {
     if (!pisos.has(z.idPiso)) pisos.set(z.idPiso, { idPiso: z.idPiso, codigo: z.pisoCodigo, nombre: z.pisoNombre, zonas: [] });
-    pisos.get(z.idPiso)!.zonas.push(z);
+    pisos.get(z.idPiso)!.zonas.push({ ...z, puestos: puestos.get(z.idZona) ?? [] } as ZonaVista);
   }
   return {
     generadoEn: new Date(),
-    granularidad: 'ZONA' as const,
+    granularidad: 'PUESTO' as const, // v2.0: cupo por zona y estado por puesto (D-23)
     datosSimulados: true,
     pisos: [...pisos.values()],
   };

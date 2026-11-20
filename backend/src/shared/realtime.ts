@@ -35,6 +35,16 @@ export class NotificadorSSE {
     this.enviar('zonas', { actualizadoEn: new Date().toISOString() }, () => true);
   }
 
+  /** v2.0: el agente tomó una decisión (para el registro en vivo de /simulacion). */
+  publicarDecisionAgente(): void {
+    this.enviar('agente', { actualizadoEn: new Date().toISOString() }, () => true);
+  }
+
+  /** v2.0: estado del tráfico simulado (encendido/apagado), para el iPad. */
+  publicarTrafico(datos: unknown): void {
+    this.enviar('trafico', datos, () => true);
+  }
+
   publicarRetencion(idSesion: string, datos: unknown): void {
     this.enviar('retencion', datos, (s) => s.idSesion === idSesion);
   }

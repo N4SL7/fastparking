@@ -23,3 +23,13 @@ services:
         generateValue: true
       - key: RETENTION_MINUTES
         value: "7"
+      # v2.0 — agente de IA (D-19): la clave se escribe en el panel de Render, nunca en el repositorio.
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gemini-2.5-flash
+      - key: LLM_TIMEOUT_MS
+        value: "8000"
+      # v2.0 — PIN de los controles de /simulacion (D-24)
+      - key: DEMO_PIN
+        sync: false

@@ -1,6 +1,6 @@
 -- Datos de prueba ILUSTRATIVOS. No son datos oficiales del Centro Comercial Parque La Colina.
 -- Capacidades pequeñas para poder demostrar conflictos con pocos eventos.
-TRUNCATE pago, ubicacion_vehiculo, historial_retencion, evento_ocupacion, retencion, sesion_visita, zona, piso RESTART IDENTITY CASCADE;
+TRUNCATE decision_agente, puesto, pago, ubicacion_vehiculo, historial_retencion, evento_ocupacion, retencion, sesion_visita, zona, piso RESTART IDENTITY CASCADE;
 
 INSERT INTO piso (id_piso, codigo, nombre, orden) VALUES
   (1, 'S1', 'Sótano 1', 1),
@@ -20,3 +20,6 @@ INSERT INTO zona (id_zona, id_piso, codigo, nombre, capacidad_total, ocupados, o
   (10, 3, 'S3-B', 'Zona B — Ascensores',        12, 1,  2),
   (11, 3, 'S3-C', 'Zona C — Escaleras',         6, 0,  3),
   (12, 3, 'S3-D', 'Zona D — Salida sur',        10, 7,  4);
+
+-- v2.0: crea los puestos de cada zona y marca como ocupados tantos como indica zona.ocupados (D-23).
+SELECT fp_ajustar_todos_los_puestos();

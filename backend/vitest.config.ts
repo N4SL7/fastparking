@@ -11,6 +11,9 @@ export default defineConfig({
         process.env.TEST_DATABASE_URL ?? 'postgres://fastparking:fastparking_local@localhost:5433/fastparking_test',
       SIMULATOR_API_KEY: 'clave-de-pruebas',
       RETENTION_MINUTES: '7',
+      LLM_API_KEY: '',
+      LLM_TIMEOUT_MS: '400',
+      DEMO_PIN: 'pin-de-pruebas',
     },
   },
 });

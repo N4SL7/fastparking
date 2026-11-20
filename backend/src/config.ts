@@ -33,4 +33,13 @@ export const config = {
   sessionHours: entero('SESSION_HOURS', 12),
   /** RF-05: cada cuánto se ejecuta el planificador de expiraciones. */
   expirationIntervalMs: entero('EXPIRATION_INTERVAL_MS', 15_000),
+  /** D-19: proveedor LLM compatible con la API de OpenAI (Gemini, Groq, OpenAI...). Sin clave = plan B por reglas. */
+  llm: {
+    baseUrl: (process.env.LLM_BASE_URL ?? 'https://generativelanguage.googleapis.com/v1beta/openai').replace(/\/+$/, ''),
+    apiKey: process.env.LLM_API_KEY ?? '',
+    model: process.env.LLM_MODEL ?? 'gemini-2.5-flash',
+    timeoutMs: entero('LLM_TIMEOUT_MS', 8_000),
+  },
+  /** D-24: PIN de los controles de la demostración (/simulacion). Vacío = controles deshabilitados. */
+  demoPin: process.env.DEMO_PIN ?? '',
 } as const;

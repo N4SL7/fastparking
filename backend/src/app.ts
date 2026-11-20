@@ -8,6 +8,7 @@ import { paymentsRouter } from './modules/payments/payments.routes.js';
 import { retentionsRouter } from './modules/retentions/retentions.routes.js';
 import { sessionsRouter } from './modules/sessions/sessions.routes.js';
 import { zonesRouter } from './modules/zones/zones.routes.js';
+import { demoRouter } from './modules/traffic/demo.routes.js';
 import { AppError, asyncHandler, errorHandler } from './shared/errors.js';
 
 /** Capa HTTP del monolito modular: valida, enruta a cada módulo y unifica el formato de errores. */
@@ -38,6 +39,7 @@ export function crearApp() {
   app.use('/api/retentions', retentionsRouter);
   app.use('/api/vehicle-location', locationsRouter);
   app.use('/api/payments', paymentsRouter);
+  app.use('/api/demo', demoRouter);
   app.use('/api', eventsRouter);
 
   // D-27: en la nube la misma API sirve la PWA compilada (un solo origen https: sin CORS y con SSE directo).

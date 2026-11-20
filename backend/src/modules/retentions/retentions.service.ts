@@ -6,6 +6,7 @@ import { notificador } from '../../shared/realtime.js';
 import { bloquearZona, listarZonas, marcarZonaActualizada } from '../zones/availability.service.js';
 import { ordenarAlternativas } from '../zones/availability.rules.js';
 import { guardarUbicacion } from '../locations/locations.service.js';
+import { ajustarPuestos, marcarPuesto, primerPuestoLibre, puestoEstaLibre } from '../zones/puestos.service.js';
 import * as repo from './retentions.repository.js';
 import type { RetencionVista } from './retentions.repository.js';
 
@@ -44,8 +45,13 @@ export async function solicitarRetencion(idSesion: string, idZona: number, puest
       if (puesto !== undefined && puesto > zona.capacidadTotal) {
         throw new AppError(400, 'PUESTO_INVALIDO', `La zona ${zona.codigo} solo tiene ${zona.capacidadTotal} puestos.`);
       }
+      // v2.0 (D-23): toda retención queda sobre un puesto concreto. Si no se eligió, el libre más cercano a la rampa.
+      if (puesto !== undefined && !(await puestoEstaLibre(tx, idZona, puesto))) {
+        throw new AppError(409, 'PUESTO_OCUPADO', `El puesto ${zona.codigo}-${String(puesto).padStart(2, '0')} ya no está libre.`);
+      }
+      const puestoFinal = puesto ?? (await primerPuestoLibre(tx, idZona)) ?? undefined;
 
-      const id = await repo.insertar(tx, { idSesion, idZona, minutos: config.retentionMinutes, puesto });
+      const id = await repo.insertar(tx, { idSesion, idZona, minutos: config.retentionMinutes, puesto: puestoFinal });
       await repo.registrarHistorial(tx, { idRetencion: id, estadoAnterior: null, estadoNuevo: 'VIGENTE', motivo: 'SOLICITUD_CONDUCTOR' });
       await marcarZonaActualizada(tx, idZona);
       return id;
@@ -119,14 +125,19 @@ export async function confirmarLlegada(idSesion: string, idRetencion: string, pu
       return { ok: false as const, estado: actual!.estado };
     }
     const idEvento = randomUUID();
+    const puestoFinal = puesto ?? previa.puesto ?? undefined;
     await tx.query(
-      `INSERT INTO evento_ocupacion (id_evento, id_zona, tipo, cantidad, fuente, ocurrido_en, resultado)
-       VALUES ($1, $2, 'ENTRADA', 1, 'CONDUCTOR', now(), 'APLICADO')`,
-      [idEvento, previa.idZona],
+      `INSERT INTO evento_ocupacion (id_evento, id_zona, tipo, cantidad, fuente, ocurrido_en, resultado, numero_puesto)
+       VALUES ($1, $2, 'ENTRADA', 1, 'CONDUCTOR', now(), 'APLICADO', $3)`,
+      [idEvento, previa.idZona, puestoFinal ?? null],
     );
+    // El vehículo ocupa SU puesto (D-23); sin puesto conocido, se suma a la zona y se recalculan los puestos.
+    if (!puestoFinal || !(await marcarPuesto(tx, previa.idZona, puestoFinal, true))) {
+      await tx.query('UPDATE zona SET ocupados = LEAST(capacidad_total, ocupados + 1) WHERE id_zona = $1', [previa.idZona]);
+      await ajustarPuestos(tx, previa.idZona);
+    }
     await tx.query(
-      `UPDATE zona SET ocupados = LEAST(capacidad_total, ocupados + 1),
-              ultimo_evento_en = GREATEST(COALESCE(ultimo_evento_en, now()), now()), actualizado_en = now()
+      `UPDATE zona SET ultimo_evento_en = GREATEST(COALESCE(ultimo_evento_en, now()), now()), actualizado_en = now()
        WHERE id_zona = $1`,
       [previa.idZona],
     );
@@ -137,7 +148,6 @@ export async function confirmarLlegada(idSesion: string, idRetencion: string, pu
       motivo: 'LLEGADA_CONFIRMADA',
       idEvento,
     });
-    const puestoFinal = puesto ?? previa.puesto ?? undefined;
     await guardarUbicacion(
       tx,
       idSesion,

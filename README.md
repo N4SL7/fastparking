@@ -176,7 +176,19 @@ Las rutas protegidas requieren la cabecera `X-Session-Id`. Los errores tienen el
 
 ## Despliegue
 
-Actualmente **no está desplegado en la nube**; se ejecuta localmente con Docker Compose (opción A).
+**App pública:** https://fastparking.onrender.com (el QR del tiquete funciona desde cualquier celular y red).
+
+| Pieza | Servicio | Cómo |
+|---|---|---|
+| Base de datos | **Neon** (PostgreSQL, plan gratuito) | Proyecto `fastparking`; su *connection string* (con `sslmode=require`) se guarda como `DATABASE_URL` en Render |
+| API + PWA | **Render** (Web Service gratuito) | Blueprint [`render.yaml`](render.yaml): compila la PWA y la API; la API sirve la PWA (un solo origen https). Al arrancar aplica las migraciones y carga los datos ilustrativos si la base está vacía |
+| Redespliegue | Automático | Cada `git push` a `main` vuelve a desplegar |
+
+Variables que se escriben **solo en el panel de Render** (nunca en el repositorio): `DATABASE_URL`, `LLM_API_KEY`, `DEMO_PIN`.
+
+> El plan gratuito de Render suspende el servicio tras un rato sin uso: la primera carga puede tardar ~50 s. Ábrelo unos minutos antes de presentar.
+
+También se puede ejecutar localmente con Docker Compose (opción A).
 
 ## Limitaciones
 

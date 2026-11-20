@@ -37,6 +37,7 @@ export function enviarEvento(zona: string, tipo: 'ENTRADA' | 'SALIDA', cantidad 
 
 export async function fijarOcupacion(codigoZona: string, ocupados: number): Promise<void> {
   await pool.query('UPDATE zona SET ocupados = $2 WHERE codigo = $1', [codigoZona, ocupados]);
+  await pool.query('SELECT fp_ajustar_puestos(id_zona) FROM zona WHERE codigo = $1', [codigoZona]);
 }
 
 export async function zona(codigo: string) {
