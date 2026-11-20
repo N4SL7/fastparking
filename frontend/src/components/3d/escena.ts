@@ -27,6 +27,8 @@ export const COLOR = {
   mio: '#14c2d6',
   intruso: '#ef4444',
   ruta: '#12b5cb',
+  /** Carro del conductor de FastParking (elegido por la autora): vinotinto. */
+  conductor: '#7b1e3a',
 };
 
 /** Paleta sobria de carros: blanco, grafito, plata, negro; 1 de cada 8 en azul o rojo apagado. */

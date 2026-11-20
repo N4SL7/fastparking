@@ -332,13 +332,13 @@ export function PisoSotano3D({
             key={`${c.clave}-${c.modo}`}
             trayecto={c.trayecto}
             inicio={c.inicio}
-            color={c.propio ? COLOR.marca : c.color}
+            color={c.propio ? COLOR.conductor : c.color}
             faros={calidad.faros}
             alTerminar={() => retirar(c.clave)}
           />
         ) : (
           <group key={c.clave} position={[aX(c.puesto.cx), 0, aZ(c.puesto.cy)]} rotation-y={yawEstacionado(c.lado)}>
-            <ModeloCarro color={c.propio ? COLOR.marca : c.color} faros={false} resaltado={c.propio ? COLOR.mio : undefined} />
+            <ModeloCarro color={c.propio ? COLOR.conductor : c.color} faros={false} resaltado={c.propio ? COLOR.mio : undefined} />
           </group>
         ),
       )}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { PisoSotano3D } from '../components/3d/PisoSotano3D';
 import { Ruta3D } from '../components/3d/Ruta3D';
+import { CarroConductor } from '../components/3d/CarroConductor';
 import { Lienzo3D } from '../components/3d/Sotano3D';
 import { detectarCalidad } from '../lib/calidad';
 import { construirPlano, rutaHastaPuesto, type ZonaEnPlano } from '../lib/plano';
@@ -18,6 +19,17 @@ const VELOCIDADES = [
   { texto: '2×', ms: 3000 },
   { texto: '5×', ms: 1200 },
 ];
+/** Conductores de FastParking en camino (puestos retenidos) con su ruta desde la rampa. */
+function conductoresDe(plano: ZonaEnPlano[]) {
+  const lista: { clave: string; ruta: ReturnType<typeof rutaHastaPuesto> }[] = [];
+  for (const z of plano) {
+    z.puestos
+      .filter((p) => p.estado === 'mio')
+      .forEach((p, i) => lista.push({ clave: `${z.zona.idZona}-${i}`, ruta: rutaHastaPuesto(p, z.lado) }));
+  }
+  return lista;
+}
+
 const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const dos = (n: number | null) => String(n ?? 0).padStart(2, '0');
 
@@ -163,6 +175,9 @@ export function Simulacion() {
     [pisos],
   );
 
+  const conectados = pisos.flatMap((p) =>
+    p.zonas.flatMap((z) => (z.puestos ?? []).filter((pu) => pu.estado === 'RETENIDO').map((pu) => `${z.codigo}-${dos(pu.numero)}`)),
+  );
   const libresPorPiso = pisos.map((p) => ({ codigo: p.codigo, libres: p.zonas.reduce((s, z) => s + z.cupoLogico, 0) }));
   const enlaceApp = `${window.location.origin}/`;
   const qr = useMemo(() => qrComoPath(enlaceApp), [enlaceApp]);
@@ -215,6 +230,11 @@ export function Simulacion() {
                       .filter((p) => p.estado === 'mio')
                       .map((p) => <Ruta3D key={`${z.zona.idZona}-${p.numero}`} ruta={rutaHastaPuesto(p, z.lado)} avance={CERO} mostrarFlecha={false} />),
                   )}
+                  {/* Un carro vinotinto por conductor de FastParking: lleva su propia key estable por zona para
+                      que, al ser reasignado dentro de la zona, gire y continúe desde donde iba. */}
+                  {conductoresDe(plano).map((c) => (
+                    <CarroConductor key={c.clave} ruta={c.ruta} faros={calidad.faros} />
+                  ))}
                 </group>
               );
             })}
@@ -275,6 +295,21 @@ export function Simulacion() {
                   <small>Ocupa el puesto que reservó el conductor</small>
                 </button>
               </>
+            )}
+          </section>
+
+          <section className="sim__tarjeta">
+            <h2>Conductores con FastParking</h2>
+            {conectados.length === 0 ? (
+              <p className="sim__nota">Nadie ha reservado todavía. Escanea el QR, toca un puesto libre y pulsa “Reservar 7 min”.</p>
+            ) : (
+              <ul className="sim__conductores">
+                {conectados.map((c) => (
+                  <li key={c}>
+                    <span className="sim__punto-vino" /> En camino a <b>{c}</b>
+                  </li>
+                ))}
+              </ul>
             )}
           </section>
 

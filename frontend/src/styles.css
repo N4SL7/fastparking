@@ -1587,3 +1587,22 @@ body:has(.sim) {
     border-left: 0;
   }
 }
+.sim__conductores {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+.sim__punto-vino {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  border-radius: 4px;
+  background: #7b1e3a;
+  box-shadow: 0 0 0 2px #14c2d6;
+  vertical-align: -1px;
+}
