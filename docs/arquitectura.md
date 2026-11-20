@@ -70,3 +70,19 @@ Fuentes editables: `diagramas/fuentes/*.dot` (Graphviz) generados por `diagramas
 3. Al continuar, recalcula el cupo lógico ya con la retención anterior y responde `409 ZONA_SIN_CUPO`.
 4. El índice único parcial `uq_retencion_vigente_por_sesion` impide dos retenciones vigentes de la misma sesión aunque lleguen en paralelo.
 5. Orden de bloqueo fijo en todo el sistema (zona → retención) y reintento ante deadlock en `withTransaction`.
+
+## v2.0 — Guía visual 3D y modo simulación (artefactos 5.1 a 5.4)
+
+**Estilo:** "maqueta arquitectónica premium". Piso de concreto gris mate, núcleos y columnas en blanco hueso, muros bajos cortados para ver el interior, **bordillo de cada zona en el color de marca `#083E4D` con línea neón** (emisiva; brilla con *bloom* en modo alto), demarcación blanca, carros procedurales en paleta sobria, puesto del conductor en teal pulsante, puesto invadido en rojo intermitente y ruta teal con chevrones animados.
+
+| Pieza | Archivo | Qué hace |
+|---|---|---|
+| Convenciones y trayectos | `frontend/src/components/3d/escena.ts` | Escala plano → 3D, paleta, trayectos de entrada (en reversa) y salida de los carros |
+| Carro | `frontend/src/components/3d/Carro3D.tsx` | Modelo procedural y animación por cuadros clave |
+| Piso del sótano | `frontend/src/components/3d/PisoSotano3D.tsx` | Losa, vía, rampa, columnas, zonas, puestos tocables y carros que entran/salen según la ocupación real ("4D") |
+| Ruta y flecha | `frontend/src/components/3d/Ruta3D.tsx` | Cinta, chevrones animados y flecha 3D |
+| Lienzo y cámaras | `frontend/src/components/3d/Sotano3D.tsx` | Luces, *bloom*, cámara general (arrastrar/pellizcar/girar) y cámara de seguimiento tipo GPS |
+| Modo simulación | `frontend/src/simulacion/Simulacion.tsx` | Ruta `/simulacion` para iPad: 3 pisos, tráfico aleatorio, carro intruso y registro del agente |
+| Calidad adaptable | `frontend/src/lib/calidad.ts` | Alto (iPad/PC): DPR 2, sombras, bloom, faros · Liviano (celular): DPR 1, sombras simuladas, sin posprocesado. Se fuerza con `?calidad=alto` o `?calidad=liviano` |
+
+Capturas reales: `docs/capturas/08-mapa-3d.png` a `14-simulacion-s1.png`.

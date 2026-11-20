@@ -16,6 +16,8 @@ export interface Zona {
   cupoLogico: number;
   estado: EstadoZona;
   actualizadoEn: string;
+  /** v2.0 (D-23): estado real de cada puesto. */
+  puestos?: { numero: number; estado: 'LIBRE' | 'OCUPADO' | 'RETENIDO' }[];
 }
 
 export interface Piso {
@@ -27,7 +29,7 @@ export interface Piso {
 
 export interface Disponibilidad {
   generadoEn: string;
-  granularidad: 'ZONA';
+  granularidad: 'ZONA' | 'PUESTO';
   datosSimulados: boolean;
   pisos: Piso[];
 }
@@ -72,6 +74,33 @@ export interface CambioRetencion {
   tipo: 'CREADA' | 'CANCELADA' | 'EXPIRADA' | 'REASIGNADA' | 'INVALIDADA' | 'UTILIZADA';
   retencion: Retencion | null;
   anterior?: Retencion | null;
+  /** v2.0: aviso redactado por el agente (LLM) o por el plan B de reglas. */
+  mensaje?: string;
+  motor?: 'LLM' | 'REGLAS';
+}
+
+/** v2.0: GET /api/demo/estado */
+export interface DecisionAgente {
+  creadaEn: string;
+  motivo: 'PUESTO_OCUPADO' | 'CONFLICTO_OCUPACION';
+  motor: 'LLM' | 'REGLAS';
+  modelo: string | null;
+  zonaAnterior: string;
+  puestoAnterior: number | null;
+  zonaNueva: string | null;
+  puestoNuevo: number | null;
+  propuestaValida: boolean;
+  herramientas: string[];
+  mensaje: string | null;
+  error: string | null;
+  latenciaMs: number;
+}
+
+export interface EstadoDemo {
+  trafico: { activo: boolean; intervaloMs: number; eventosGenerados: number };
+  agente: { motor: 'LLM' | 'REGLAS'; modelo: string | null };
+  controlesHabilitados: boolean;
+  decisiones: DecisionAgente[];
 }
 
 export type MetodoPago = 'TARJETA' | 'NEQUI' | 'PSE';

@@ -39,7 +39,7 @@ export default function App() {
   const avisar = useCallback((texto: string, tipo: Aviso['tipo'] = 'info') => {
     const id = Date.now() + Math.random();
     setAvisos((a) => [...a.slice(-1), { id, tipo, texto }]);
-    setTimeout(() => setAvisos((a) => a.filter((x) => x.id !== id)), 5_000);
+    setTimeout(() => setAvisos((a) => a.filter((x) => x.id !== id)), tipo === 'alerta' ? 9_000 : 5_000);
   }, []);
 
   /** RF-06 / RF-15: cambios de la retención recibidos por SSE. */
@@ -47,10 +47,14 @@ export default function App() {
     (c: CambioRetencion) => {
       if (c.tipo === 'REASIGNADA' && c.retencion) {
         setRetencion(c.retencion);
-        avisar(`La zona ${c.anterior?.zonaCodigo} se ocupó. Te reasignamos a ${c.retencion.zonaCodigo} (${c.retencion.pisoNombre}).`, 'alerta');
+        // RF-18: el aviso lo redacta el agente (LLM) o, en su defecto, el plan B de reglas.
+        avisar(
+          c.mensaje ?? `La zona ${c.anterior?.zonaCodigo} se ocupó. Te reasignamos a ${c.retencion.zonaCodigo} (${c.retencion.pisoNombre}).`,
+          'alerta',
+        );
       } else if (c.tipo === 'INVALIDADA') {
         setRetencion(null);
-        avisar(`La zona ${c.anterior?.zonaCodigo} se ocupó y no hay otra zona con cupo. Tu retención fue invalidada.`, 'alerta');
+        avisar(c.mensaje ?? `La zona ${c.anterior?.zonaCodigo} se ocupó y no hay otra zona con cupo. Tu retención fue invalidada.`, 'alerta');
       } else if (c.tipo === 'EXPIRADA') {
         if (retencionRef.current?.idRetencion === c.retencion?.idRetencion) {
           setRetencion(null);

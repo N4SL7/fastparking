@@ -1165,3 +1165,425 @@ p {
   }
 }
 .hoja { scroll-margin-bottom: 110px; }
+
+/* ---------- v2.0: escena 3D (Three.js) ---------- */
+.lienzo-3d {
+  position: absolute;
+  inset: 0;
+  touch-action: none; /* los gestos de la escena no desplazan la página */
+}
+.lienzo-3d canvas {
+  display: block;
+}
+.mapa-escena {
+  perspective: none;
+  background: #e7ecef;
+}
+.mapa-escena .hud,
+.mapa-escena .mapa__pista,
+.mapa-escena .mapa__alerta {
+  z-index: 30;
+}
+.mapa__alerta {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #b42318;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgb(180 35 24 / 0.35);
+  animation: alerta-entra 0.35s ease-out;
+}
+@keyframes alerta-entra {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+.etiqueta-3d {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 64px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgb(8 62 77 / 0.88);
+  color: #fff;
+  font: 600 13px/1.15 Inter, system-ui, sans-serif;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgb(8 62 77 / 0.25);
+  backdrop-filter: blur(6px);
+  user-select: none;
+}
+.etiqueta-3d strong {
+  font-size: 20px;
+  letter-spacing: 0.04em;
+}
+.etiqueta-3d span {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+.etiqueta-3d.activa {
+  background: #0e7c8c;
+  outline: 2px solid #5ff3ff;
+}
+.etiqueta-3d--llena span {
+  color: #ffb4ab;
+}
+.etiqueta-3d--pocos_cupos span {
+  color: #ffd98a;
+}
+.etiqueta-3d--rampa {
+  min-width: 0;
+  padding: 4px 10px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  background: rgb(16 36 42 / 0.78);
+}
+.leyenda__muestra--retenido {
+  border-style: solid;
+  border-color: #f5b942;
+  background: rgb(245 185 66 / 0.45);
+}
+.leyenda__muestra--mio {
+  border-color: #14c2d6;
+  background: rgb(20 194 214 / 0.45);
+}
+
+/* ---------- v2.0: modo simulación para iPad (/simulacion, pantalla completa) ---------- */
+body:has(.sim) {
+  padding: 0;
+  background: #0b1f26;
+}
+.sim {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0b1f26;
+  color: #eaf4f6;
+  font-family: Inter, system-ui, sans-serif;
+}
+.sim__barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  background: linear-gradient(90deg, #083e4d, #0b2b33);
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  flex-wrap: wrap;
+}
+.sim__marca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sim__marca strong {
+  display: block;
+  font-size: 18px;
+}
+.sim__marca small {
+  color: #9fc3cb;
+  font-size: 12px;
+}
+.sim__logo {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #26c6da;
+  color: #083e4d;
+  font-weight: 800;
+  font-size: 20px;
+}
+.sim__chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sim__chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  font-size: 13px;
+}
+.sim__chip b {
+  color: #5ff3ff;
+}
+.sim__chip--llm {
+  background: rgb(38 198 218 / 0.22);
+  color: #bff7ff;
+}
+.sim__chip--reglas {
+  background: rgb(245 185 66 / 0.2);
+  color: #ffe2a6;
+}
+.sim__chip--vivo {
+  background: rgb(34 197 94 / 0.2);
+  color: #b8f5cc;
+}
+.sim__cuerpo {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  min-height: 0;
+}
+.sim__escena {
+  position: relative;
+  min-height: 0;
+}
+.sim__escena .lienzo-3d {
+  position: absolute;
+  inset: 0;
+}
+.sim__vistas {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 16px;
+  background: rgb(11 31 38 / 0.82);
+  backdrop-filter: blur(10px);
+}
+.sim__vistas button,
+.sim__velocidad button {
+  border: 0;
+  padding: 10px 14px;
+  border-radius: 11px;
+  background: transparent;
+  color: #cfe6eb;
+  font: 600 14px Inter, system-ui, sans-serif;
+  cursor: pointer;
+  min-height: 44px;
+}
+.sim__vistas button.activo,
+.sim__velocidad button.activo {
+  background: #26c6da;
+  color: #083e4d;
+}
+.sim__rotulos {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 18px;
+  display: flex;
+  justify-content: space-around;
+  pointer-events: none;
+}
+.sim__rotulos span {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgb(8 62 77 / 0.85);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
+.sim__mensaje {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%);
+  max-width: min(640px, 90%);
+  padding: 12px 18px;
+  border-radius: 14px;
+  font-weight: 600;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.3);
+  animation: alerta-entra 0.3s ease-out;
+}
+.sim__mensaje--ok {
+  background: #0e7c8c;
+}
+.sim__mensaje--error {
+  background: #b42318;
+}
+.sim__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  overflow-y: auto;
+  background: #0f2a33;
+  border-left: 1px solid rgb(255 255 255 / 0.06);
+}
+.sim__tarjeta {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 0.05);
+  border: 1px solid rgb(255 255 255 / 0.07);
+}
+.sim__tarjeta h2 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9fc3cb;
+}
+.sim__nota {
+  color: #9fc3cb;
+  font-size: 13px;
+}
+.sim__pin {
+  display: flex;
+  gap: 8px;
+}
+.sim__pin input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  background: rgb(0 0 0 / 0.25);
+  color: #fff;
+  font-size: 16px;
+}
+.sim__pin button,
+.sim__boton {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  background: #26c6da;
+  color: #083e4d;
+  font: 700 14px Inter, system-ui, sans-serif;
+  cursor: pointer;
+}
+.sim__boton--activo {
+  background: #f5b942;
+}
+.sim__fila {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.sim__velocidad {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 13px;
+  background: rgb(0 0 0 / 0.25);
+}
+.sim__intruso {
+  width: 100%;
+  margin-top: 12px;
+  min-height: 64px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ef4444, #b42318);
+  color: #fff;
+  font: 800 18px Inter, system-ui, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgb(239 68 68 / 0.3);
+}
+.sim__intruso small {
+  display: block;
+  font-weight: 500;
+  font-size: 12px;
+  opacity: 0.9;
+}
+.sim__intruso:active {
+  transform: scale(0.98);
+}
+.sim__registro {
+  flex: 1;
+  min-height: 200px;
+}
+.sim__registro ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sim__decision {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgb(0 0 0 / 0.22);
+  font-size: 13px;
+}
+.sim__decision-cabeza {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sim__decision-cabeza time {
+  margin-left: auto;
+  color: #7fa6ae;
+  font-size: 12px;
+}
+.sim__motor {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 11px;
+}
+.sim__motor--llm {
+  background: #26c6da;
+  color: #083e4d;
+}
+.sim__motor--reglas {
+  background: #f5b942;
+  color: #3d2a00;
+}
+.sim__herramientas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.sim__herramientas code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgb(38 198 218 / 0.14);
+  color: #9feef8;
+  font-size: 11px;
+}
+.sim__decision-mensaje {
+  margin-top: 6px;
+  color: #eaf4f6;
+  font-style: italic;
+}
+.sim__decision-meta {
+  margin-top: 4px;
+  color: #7fa6ae;
+  font-size: 11px;
+}
+.sim__qr {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.sim__qr svg {
+  width: 96px;
+  height: 96px;
+  border-radius: 10px;
+  flex: none;
+}
+.sim__qr strong {
+  display: block;
+}
+.sim__qr small {
+  color: #9fc3cb;
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .sim__cuerpo {
+    grid-template-columns: 1fr;
+    grid-template-rows: 60vh auto;
+  }
+  .sim__panel {
+    border-left: 0;
+  }
+}

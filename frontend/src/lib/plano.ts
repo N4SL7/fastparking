@@ -48,6 +48,39 @@ function ordenDeOcupacion(idZona: number, n: number): number[] {
   return orden;
 }
 
+
+/** Respaldo v1.0 (API sin puestos): ocupación estable a partir del número de ocupados y retenidas de la zona. */
+function ocupacionDeterminista(zona: Zona, puestos: Puesto[], opciones: OpcionesPlano): void {
+  // Ocupación física (eventos): primero el vehículo propio si está en esta zona, luego el orden determinista.
+  const propio = opciones.vehiculo?.idZona === zona.idZona ? opciones.vehiculo.puesto : null;
+  let porOcupar = zona.ocupados;
+  if (propio && puestos[propio - 1] && porOcupar > 0) {
+    puestos[propio - 1].estado = 'mi-vehiculo';
+    porOcupar--;
+  }
+  for (const idx of ordenDeOcupacion(zona.idZona, zona.capacidadTotal)) {
+    if (porOcupar <= 0) break;
+    if (puestos[idx].estado === 'libre') {
+      puestos[idx].estado = 'ocupado';
+      porOcupar--;
+    }
+  }
+  // Retenciones vigentes: la mía toma el primer libre (más cercano a la rampa); las demás, los siguientes.
+  const libres = puestos.filter((p) => p.estado === 'libre');
+  let retenidasOtras = zona.retenidas;
+  if (opciones.idZonaRetencion === zona.idZona && libres.length > 0) {
+    const elegido = libres.find((p) => p.numero === opciones.puestoRetencion) ?? libres[0];
+    elegido.estado = 'mio';
+    libres.splice(libres.indexOf(elegido), 1);
+    retenidasOtras--;
+  }
+  for (const p of libres) {
+    if (retenidasOtras <= 0) break;
+    p.estado = 'retenido';
+    retenidasOtras--;
+  }
+}
+
 export interface OpcionesPlano {
   /** Zona de la retención vigente del conductor. */
   idZonaRetencion?: number;
@@ -74,33 +107,18 @@ export function construirPlano(zonas: Zona[], opciones: OpcionesPlano = {}): Zon
         return { numero: k + 1, x, y, ancho, alto: altoPuesto, cx: x + ancho / 2, cy: y + altoPuesto / 2, estado: 'libre' as const };
       });
 
-      // Ocupación física (eventos): primero el vehículo propio si está en esta zona, luego el orden determinista.
-      const propio = opciones.vehiculo?.idZona === zona.idZona ? opciones.vehiculo.puesto : null;
-      let porOcupar = zona.ocupados;
-      if (propio && puestos[propio - 1] && porOcupar > 0) {
-        puestos[propio - 1].estado = 'mi-vehiculo';
-        porOcupar--;
-      }
-      for (const idx of ordenDeOcupacion(zona.idZona, zona.capacidadTotal)) {
-        if (porOcupar <= 0) break;
-        if (puestos[idx].estado === 'libre') {
-          puestos[idx].estado = 'ocupado';
-          porOcupar--;
+      if (zona.puestos && zona.puestos.length === zona.capacidadTotal) {
+        // v2.0 (D-23): estado REAL de cada puesto entregado por la API.
+        const propio = opciones.vehiculo?.idZona === zona.idZona ? opciones.vehiculo.puesto : null;
+        const mio = opciones.idZonaRetencion === zona.idZona ? opciones.puestoRetencion : null;
+        for (const real of zona.puestos) {
+          const p = puestos[real.numero - 1];
+          if (!p) continue;
+          if (real.estado === 'OCUPADO') p.estado = real.numero === propio ? 'mi-vehiculo' : 'ocupado';
+          else if (real.estado === 'RETENIDO') p.estado = real.numero === mio ? 'mio' : 'retenido';
         }
-      }
-      // Retenciones vigentes: la mía toma el primer libre (más cercano a la rampa); las demás, los siguientes.
-      const libres = puestos.filter((p) => p.estado === 'libre');
-      let retenidasOtras = zona.retenidas;
-      if (opciones.idZonaRetencion === zona.idZona && libres.length > 0) {
-        const elegido = libres.find((p) => p.numero === opciones.puestoRetencion) ?? libres[0];
-        elegido.estado = 'mio';
-        libres.splice(libres.indexOf(elegido), 1);
-        retenidasOtras--;
-      }
-      for (const p of libres) {
-        if (retenidasOtras <= 0) break;
-        p.estado = 'retenido';
-        retenidasOtras--;
+      } else {
+        ocupacionDeterminista(zona, puestos, opciones);
       }
 
       const edificio = { x: izq ? 14 : 290, y: b.y + 40, ancho: 56, alto: b.alto - 80 };
