@@ -39,7 +39,12 @@ export class ProveedorCompatibleOpenAI implements ProveedorLLM {
     const res = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
-      body: JSON.stringify({ model: this.modelo, messages: mensajes, tools: herramientas, tool_choice: 'auto', temperature: 0.2 }),
+      body: JSON.stringify({
+        model: this.modelo,
+        messages: mensajes,
+        temperature: 0.2,
+        ...(herramientas.length ? { tools: herramientas, tool_choice: 'auto' } : {}),
+      }),
       signal: senal,
     });
     if (!res.ok) {
@@ -59,6 +64,31 @@ export function registrarErrorLLM(origen: string, err: unknown): void {
   const mensaje = `${origen}: ${(err as Error)?.message ?? String(err)}`.replace(/AIza[0-9A-Za-z_-]+/g, '[clave]').slice(0, 400);
   ultimoErrorLLM = { mensaje, en: new Date().toISOString() };
   console.warn('[llm]', mensaje);
+}
+
+/** Resultado de la verificación del LLM al arrancar el servidor (se ve en /api/demo/estado). */
+export let verificacionLLM: { ok: boolean; detalle: string; en: string } | null = null;
+
+/** Hace una pregunta mínima al LLM para confirmar que la clave y el modelo funcionan. Nunca lanza error. */
+export async function verificarLLM(): Promise<void> {
+  const proveedor = obtenerProveedorLLM();
+  const en = new Date().toISOString();
+  if (!proveedor) {
+    verificacionLLM = { ok: false, detalle: 'Sin clave: LLM_API_KEY está vacía', en };
+    return;
+  }
+  const controlador = new AbortController();
+  const t = setTimeout(() => controlador.abort(), 15_000);
+  try {
+    const r = await proveedor.completar([{ role: 'user', content: 'Responde solo: OK' }], [], controlador.signal);
+    verificacionLLM = { ok: true, detalle: `Responde (${proveedor.modelo}): ${(r.content ?? '').slice(0, 40)}`, en };
+    console.log('[llm] verificación correcta con', proveedor.modelo);
+  } catch (err) {
+    verificacionLLM = { ok: false, detalle: String((err as Error).message).replace(/AIza[0-9A-Za-z_-]+/g, '[clave]').slice(0, 300), en };
+    registrarErrorLLM('verificacion', err);
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 let proveedorDePrueba: ProveedorLLM | null | undefined;

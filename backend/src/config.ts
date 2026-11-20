@@ -13,6 +13,16 @@ function entero(nombre: string, porDefecto: number): number {
   return n;
 }
 
+/**
+ * Limpia la clave pegada en un panel: quita espacios, saltos de línea y comillas, y si se pegó la línea completa
+ * ("LLM_API_KEY=AIza..."), extrae solo la clave. Las claves de Google AI Studio empiezan por "AIza".
+ */
+export function limpiarClave(valor: string): string {
+  const google = valor.match(/AIza[0-9A-Za-z_-]{30,}/);
+  if (google) return google[0];
+  return valor.trim().replace(/^[A-Z_]+=/, '').replace(/^["']|["']$/g, '').trim();
+}
+
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error('Falta la variable de entorno DATABASE_URL (ver .env.example)');
@@ -37,7 +47,7 @@ export const config = {
   llm: {
     baseUrl: (process.env.LLM_BASE_URL ?? 'https://generativelanguage.googleapis.com/v1beta/openai').replace(/\/+$/, ''),
     // Se limpian espacios, saltos de línea y comillas que suelen colarse al pegar la clave en un panel.
-    apiKey: (process.env.LLM_API_KEY ?? '').trim().replace(/^["']|["']$/g, '').trim(),
+    apiKey: limpiarClave(process.env.LLM_API_KEY ?? ''),
     model: (process.env.LLM_MODEL ?? 'gemini-2.5-flash').trim(),
     timeoutMs: entero('LLM_TIMEOUT_MS', 8_000),
   },

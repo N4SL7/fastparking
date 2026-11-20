@@ -56,3 +56,12 @@ describe('Adaptador: ocupación física', () => {
     expect(aplicarOcupacion(1, 10, 'SALIDA', 3)).toBe(0);
   });
 });
+
+describe('limpiarClave (D-19)', async () => {
+  const { limpiarClave } = await import('../src/config.js');
+  it('acepta la clave pegada con espacios, comillas, salto de línea o la línea completa', () => {
+    const k = 'AIzaSyA1234567890abcdefghijklmnopqrstuv';
+    for (const pegada of [k, ` ${k} `, `"${k}"`, `${k}\n`, `LLM_API_KEY=${k}`, `LLM_API_KEY="${k}"`]) expect(limpiarClave(pegada)).toBe(k);
+    expect(limpiarClave('  otra-clave  ')).toBe('otra-clave');
+  });
+});
