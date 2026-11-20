@@ -216,3 +216,54 @@ describe('CP-14 tráfico simulado (RF-20)', () => {
     expect(actual.body.estado).toBe('VIGENTE');
   });
 });
+
+describe('CP-15 asistente de ayuda del conductor (RF-21)', () => {
+  function preguntar(idSesion: string, pregunta: string) {
+    return request(app).post('/api/asistente').set('x-session-id', idSesion).send({ pregunta });
+  }
+
+  it('sin LLM responde por reglas con los datos reales de la sesión', async () => {
+    fijarProveedorLLM(null);
+    const sesion = await crearSesion();
+    const cuenta = await preguntar(sesion, '¿Cuánto debo pagar?');
+    expect(cuenta.status).toBe(200);
+    expect(cuenta.body).toMatchObject({ motor: 'REGLAS', herramientas: ['ver_mi_cuenta'] });
+    expect(cuenta.body.respuesta).toContain('Billetera');
+    await retenerPuesto(sesion, 'S1-C');
+    const reserva = await preguntar(sesion, '¿cuánto le queda a mi reserva?');
+    expect(reserva.body.respuesta).toContain('S1-C');
+  });
+
+  it('con LLM usa herramientas de solo lectura y devuelve su respuesta', async () => {
+    let turno = 0;
+    const vistos: MensajeLLM[][] = [];
+    fijarProveedorLLM({
+      modelo: 'modelo-falso',
+      async completar(mensajes) {
+        vistos.push(structuredClone(mensajes));
+        if (turno++ === 0) {
+          return { role: 'assistant', content: null, tool_calls: [{ id: 'c1', type: 'function', function: { name: 'ver_mi_vehiculo', arguments: '{}' } }] };
+        }
+        return { role: 'assistant', content: 'Aún no registras tu puesto; entraste hace un momento.' };
+      },
+    });
+    const sesion = await crearSesion();
+    const res = await preguntar(sesion, '¿dónde dejé mi carro?');
+    expect(res.body).toMatchObject({ motor: 'LLM', herramientas: ['ver_mi_vehiculo'], respuesta: 'Aún no registras tu puesto; entraste hace un momento.' });
+    // El LLM recibió el resultado real de la herramienta (hora de entrada de ESTA sesión).
+    expect(vistos[1].find((m) => m.role === 'tool')!.content).toContain('horaEntrada');
+  });
+
+  it('si el LLM falla, responde el plan B', async () => {
+    fijarProveedorLLM({ modelo: 'caido', completar: async () => { throw new Error('500'); } });
+    const res = await preguntar(await crearSesion(), '¿hay puestos libres en S2?');
+    expect(res.body).toMatchObject({ motor: 'REGLAS', herramientas: ['ver_disponibilidad'] });
+    expect(res.body.respuesta).toContain('S2-');
+  });
+
+  it('exige sesión y valida la pregunta', async () => {
+    expect((await request(app).post('/api/asistente').send({ pregunta: 'hola' })).status).toBe(401);
+    const sesion = await crearSesion();
+    expect((await preguntar(sesion, '')).status).toBe(400);
+  });
+});

@@ -103,3 +103,25 @@ Cambiar a otro proveedor compatible (Groq, OpenAI) solo requiere cambiar `LLM_BA
 - El parqueadero, los puestos y las distancias son **ilustrativos** (RN-09).
 - El LLM puede variar su redacción: el mensaje se limita a 220 caracteres y su contenido no afecta los datos.
 - Mientras el agente decide, la zona afectada permanece bloqueada (máximo `LLM_TIMEOUT_MS`): aceptable en un prototipo, documentado como mejora futura (decidir fuera de la transacción con reserva optimista).
+
+## 10. Segundo agente: asistente de ayuda del conductor (RF-21)
+
+Botón flotante en la app del celular que abre un chat. El conductor pregunta en lenguaje natural y el agente responde **con los datos de su propia visita**.
+
+| Herramienta | Qué consulta | Alcance |
+|---|---|---|
+| `ver_mi_vehiculo` | Dónde quedó el carro y hora de entrada | Solo la sesión del conductor |
+| `ver_mi_reserva` | Puesto retenido y minutos restantes | Solo la sesión del conductor |
+| `ver_mi_cuenta` | Minutos, tarifa ilustrativa y valor, o pago ya hecho | Solo la sesión del conductor |
+| `ver_disponibilidad` | Puestos libres por piso y zona | Dato agregado, público |
+
+**Guardarraíles:**
+- Todas las herramientas son de **solo lectura**: el asistente no reserva, no cancela ni paga. Indica qué botón usar.
+- Sin LLM, ante un error o al agotarse el tiempo, responde un **plan B por palabras clave** con las mismas herramientas.
+- La pregunta se valida en el servidor (máximo 300 caracteres) y el historial se limita a los últimos 6 turnos.
+
+Código: [`assistant.service.ts`](../backend/src/modules/agent/assistant.service.ts) · Endpoint `POST /api/asistente` (requiere `X-Session-Id`) · Pruebas: CP-15 en `agente.test.ts` · Captura: `docs/capturas/16-asistente-ia.png`.
+
+| ID | Requerimiento | Criterio de aceptación |
+|---|---|---|
+| RF-21 | Asistente de ayuda con IA | Responde dónde está el vehículo, el valor a pagar, el tiempo de la reserva y la disponibilidad usando herramientas de solo lectura; sin LLM responde por reglas |

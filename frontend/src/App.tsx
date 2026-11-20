@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError } from './api';
 import { ListaZonas, PanelAlternativas, SelectorPiso } from './components/Disponibilidad';
+import { Asistente } from './components/Asistente';
 import { Billetera } from './components/Billetera';
 import { IconoBilletera, IconoCarro, IconoInicio, IconoMapa } from './components/iconos';
 import { MapaSotano } from './components/MapaSotano';
@@ -276,6 +277,8 @@ export default function App() {
 
         {pestana === 'billetera' && <Billetera ahora={ahora} onAviso={avisar} onNuevoIngreso={sesion.nuevoIngreso} />}
       </main>
+
+      <Asistente />
 
       <nav className="barra-nav" aria-label="Secciones">
         {PESTANAS.map((p) => (

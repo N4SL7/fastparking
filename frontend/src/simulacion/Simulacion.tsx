@@ -313,11 +313,20 @@ export function Simulacion() {
             )}
           </section>
 
-          <section className="sim__tarjeta sim__registro">
-            <h2>Decisiones del agente</h2>
-            {!demo?.decisiones.length && <p className="sim__nota">Aún no hay decisiones. Reserva un puesto en el celular y lanza el carro intruso.</p>}
+          {/* Registro del agente: compacto. Se despliega solo cuando se quiere mostrar al profesor. */}
+          <details className="sim__tarjeta sim__registro">
+            <summary>
+              <span>Decisiones de la IA ({demo?.decisiones.length ?? 0})</span>
+              {demo?.decisiones[0] && (
+                <span className="sim__resumen">
+                  <span className={`sim__motor sim__motor--${demo.decisiones[0].motor.toLowerCase()}`}>{demo.decisiones[0].motor}</span>
+                  {demo.decisiones[0].zonaAnterior}-{dos(demo.decisiones[0].puestoAnterior)} →{' '}
+                  {demo.decisiones[0].zonaNueva ? `${demo.decisiones[0].zonaNueva}-${dos(demo.decisiones[0].puestoNuevo)}` : '—'}
+                </span>
+              )}
+            </summary>
             <ol>
-              {demo?.decisiones.map((d, i) => (
+              {demo?.decisiones.slice(0, 6).map((d, i) => (
                 <li key={i} className="sim__decision">
                   <div className="sim__decision-cabeza">
                     <span className={`sim__motor sim__motor--${d.motor.toLowerCase()}`}>{d.motor}</span>
@@ -335,13 +344,12 @@ export function Simulacion() {
                   )}
                   {d.mensaje && <p className="sim__decision-mensaje">“{d.mensaje}”</p>}
                   <p className="sim__decision-meta">
-                    {d.latenciaMs} ms · {d.motivo === 'PUESTO_OCUPADO' ? 'puesto ocupado' : 'zona llena'}
-                    {d.error ? ` · plan B: ${d.error}` : ''}
+                    {d.latenciaMs} ms{d.error ? ` · plan B: ${d.error.split('\n')[0].slice(0, 60)}` : ''}
                   </p>
                 </li>
               ))}
             </ol>
-          </section>
+          </details>
 
           <section className="sim__tarjeta sim__qr">
             <svg viewBox={`-2 -2 ${qr.tamano + 4} ${qr.tamano + 4}`} role="img" aria-label="QR para abrir la app del conductor">

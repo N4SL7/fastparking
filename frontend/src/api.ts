@@ -53,6 +53,11 @@ export const api = {
   cancelar: (idRetencion: string) => pedir<Retencion>(`/api/retentions/${idRetencion}/cancel`, { method: 'POST' }),
   llegar: (idRetencion: string, puesto?: number) =>
     pedir<Retencion>(`/api/retentions/${idRetencion}/arrive`, { method: 'POST', body: JSON.stringify({ puesto }) }),
+  asistente: (pregunta: string, historial: { rol: 'usuario' | 'asistente'; texto: string }[]) =>
+    pedir<{ respuesta: string; motor: 'LLM' | 'REGLAS'; herramientas: string[] }>('/api/asistente', {
+      method: 'POST',
+      body: JSON.stringify({ pregunta, historial }),
+    }),
   ubicacion: () => pedir<{ ubicacion: Ubicacion | null }>('/api/vehicle-location'),
   guardarUbicacion: (idZona: number, referencia: string) =>
     pedir<{ ubicacion: Ubicacion }>('/api/vehicle-location', {

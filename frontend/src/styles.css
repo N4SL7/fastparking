@@ -1606,3 +1606,178 @@ body:has(.sim) {
   box-shadow: 0 0 0 2px #14c2d6;
   vertical-align: -1px;
 }
+
+/* ---------- v2.0: asistente de ayuda con IA (RF-21) ---------- */
+.asistente-boton {
+  position: fixed;
+  right: max(16px, calc(50% - 215px + 16px));
+  bottom: 104px;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border: 0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #13708a, #083e4d);
+  color: #fff;
+  font-size: 18px;
+  box-shadow: 0 10px 24px rgb(8 62 77 / 0.35);
+  cursor: pointer;
+}
+.asistente-boton.abierto {
+  background: #10242a;
+}
+.asistente {
+  position: fixed;
+  left: max(12px, calc(50% - 215px + 12px));
+  right: max(12px, calc(50% - 215px + 12px));
+  bottom: 168px;
+  z-index: 59;
+  display: flex;
+  flex-direction: column;
+  max-height: min(60vh, 520px);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgb(8 62 77 / 0.28);
+  overflow: hidden;
+  animation: alerta-entra 0.25s ease-out;
+}
+.asistente__cabecera {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #083e4d;
+  color: #fff;
+}
+.asistente__cabecera small {
+  display: block;
+  font-size: 11px;
+  opacity: 0.8;
+}
+.asistente__avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: #26c6da;
+  color: #083e4d;
+  font-weight: 800;
+  font-size: 13px;
+}
+.asistente__mensajes {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #f3f7f8;
+}
+.asistente__burbuja {
+  max-width: 85%;
+  padding: 9px 12px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.asistente__burbuja--asistente {
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-bottom-left-radius: 6px;
+}
+.asistente__burbuja--usuario {
+  align-self: flex-end;
+  background: #083e4d;
+  color: #fff;
+  border-bottom-right-radius: 6px;
+}
+.asistente__pensando {
+  color: var(--texto-2);
+  font-style: italic;
+}
+.asistente__sugerencias {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px 0;
+  overflow-x: auto;
+}
+.asistente__sugerencias button {
+  flex: none;
+  padding: 7px 11px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--marca);
+  font: 600 12px Inter, system-ui, sans-serif;
+  cursor: pointer;
+}
+.asistente__formulario {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+.asistente__formulario input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  font-size: 16px;
+}
+.asistente__formulario button {
+  width: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: #083e4d;
+  color: #fff;
+  font-size: 16px;
+}
+.asistente__formulario button:disabled {
+  opacity: 0.4;
+}
+/* Panel compacto de decisiones de la IA en /simulacion */
+.sim__registro {
+  flex: none;
+  min-height: 0;
+}
+.sim__registro summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9fc3cb;
+}
+.sim__registro summary::-webkit-details-marker {
+  display: none;
+}
+.sim__registro summary::after {
+  content: 'Ver detalle ▾';
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #5ff3ff;
+}
+.sim__registro[open] summary::after {
+  content: 'Ocultar ▴';
+}
+.sim__registro[open] ol {
+  margin-top: 10px;
+}
+.sim__resumen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #eaf4f6;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 14px;
+}
