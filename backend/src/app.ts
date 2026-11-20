@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import { pool } from './db/pool.js';
 import { eventsRouter } from './modules/events/events.routes.js';
@@ -37,6 +39,16 @@ export function crearApp() {
   app.use('/api/vehicle-location', locationsRouter);
   app.use('/api/payments', paymentsRouter);
   app.use('/api', eventsRouter);
+
+  // D-27: en la nube la misma API sirve la PWA compilada (un solo origen https: sin CORS y con SSE directo).
+  const dirPwa = process.env.STATIC_DIR ? path.resolve(process.env.STATIC_DIR) : '';
+  if (dirPwa && existsSync(path.join(dirPwa, 'index.html'))) {
+    app.use(express.static(dirPwa, { index: false, maxAge: '1h' }));
+    app.get(/^\/(?!api\/).*/, (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(path.join(dirPwa, 'index.html'));
+    });
+  }
 
   app.use((_req, _res, next) => next(new AppError(404, 'RUTA_NO_ENCONTRADA', 'La ruta solicitada no existe.')));
   app.use(errorHandler);

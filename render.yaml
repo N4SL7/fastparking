@@ -1,0 +1,25 @@
+# Despliegue en Render (D-27): un solo Web Service sirve la API y la PWA compilada.
+# La base de datos vive en Neon: DATABASE_URL se configura en el panel de Render (no se sube al repo).
+services:
+  - type: web
+    name: fastparking
+    runtime: node
+    plan: free
+    region: ohio
+    branch: main
+    buildCommand: >-
+      cd frontend && npm ci && npm run build &&
+      cd ../backend && npm ci --include=dev && npm run build
+    startCommand: cd backend && node dist/db/cli.js --seed-if-empty && node dist/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: STATIC_DIR
+        value: ../frontend/dist
+      - key: DATABASE_URL
+        sync: false
+      - key: SIMULATOR_API_KEY
+        generateValue: true
+      - key: RETENTION_MINUTES
+        value: "7"
