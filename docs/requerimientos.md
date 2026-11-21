@@ -86,3 +86,26 @@ Diseñar y desarrollar una aplicación web progresiva (FastParking) que permita 
 - No se recolectan placas, identidad ni ubicación GPS (Ley 1581 de 2012).
 - No se puede afirmar reducción real de tiempos sin una evaluación con datos comparables.
 - Proyecto individual con plazo académico: el alcance prioriza el flujo principal.
+
+## 8. Requerimientos añadidos en la versión 2.0 (20 nov 2026)
+
+Necesidad nueva N-4: FastParking convive con conductores que no usan la app; uno de ellos puede ocupar el puesto que otro reservó.
+
+| ID | Nombre | Descripción | Criterio de aceptación | Prueba |
+|---|---|---|---|---|
+| RF-18 | Reasignación por agente LLM | Ante un conflicto, un agente LLM (Gemini) usa herramientas para elegir el nuevo puesto y redactar el aviso; el backend valida la propuesta antes de aplicarla | La retención pasa a REASIGNADA, nace una VIGENTE en el puesto elegido y queda una fila en `decision_agente` con motor, herramientas, validez y latencia | CP-13 |
+| RF-19 | Carro intruso | Un vehículo sin FastParking entra por la otra puerta y ocupa el puesto retenido | Si llega primero, el puesto queda OCUPADO, el agente reasigna, el celular recibe el aviso y la flecha recalcula la ruta | CP-12 |
+| RF-20 | Simulación 3D y tráfico | Vista `/simulacion` (iPad) con los 3 sótanos en 3D, tráfico aleatorio, carro intruso con PIN y carro del conductor sincronizado con su navegación | Celular e iPad muestran la misma ocupación en vivo; el carro vinotinto llega cuando el celular dice "Llegaste" | CP-14 + prueba de interfaz |
+| RF-21 | Asistente de ayuda con IA | Chat en el celular que responde preguntas sobre el carro, la reserva, la cuenta y la disponibilidad | Usa herramientas de solo lectura de la propia sesión; sin LLM responde por reglas | CP-15 |
+
+| ID | Atributo | Requerimiento verificable |
+|---|---|---|
+| RNF-11 | Resiliencia de la IA | Si el LLM no está configurado, falla, excede `LLM_TIMEOUT_MS` o propone algo inválido, decide el plan B por reglas; la reasignación nunca queda sin resolver |
+| RNF-12 | Rendimiento gráfico | Calidad adaptable: modo alto (iPad/PC) y liviano (celular); meta ≥ 30 fps en celular de gama media (meta, por medir con usuarios) |
+| RNF-13 | Disponibilidad pública | App desplegada en https://fastparking.onrender.com con HTTPS; el QR funciona desde cualquier red |
+
+| ID | Regla |
+|---|---|
+| RN-17 | El LLM solo propone: ninguna decisión se aplica sin validación del backend con la zona bloqueada |
+| RN-18 | Toda retención queda sobre un puesto concreto; un puesto solo puede tener una retención VIGENTE |
+| RN-19 | El asistente de ayuda no reserva, cancela ni paga: solo consulta datos de la sesión del conductor |

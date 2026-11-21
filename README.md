@@ -1,6 +1,8 @@
 # FastParking
 
-Aplicación web progresiva (PWA) para que los visitantes del **Centro Comercial Parque La Colina (Bogotá)** abran la app desde el **QR del tiquete**, consulten la **disponibilidad de parqueadero por zona y piso**, soliciten una **retención temporal simulada de 7 minutos**, reciban una **reasignación automática** si la zona se ocupa, sigan una **ruta animada en el mapa 3D del sótano** hasta su puesto y **guarden dónde dejaron el vehículo**.
+**v2.0** · App pública: **https://fastparking.onrender.com** · Simulación (iPad): **https://fastparking.onrender.com/simulacion**
+
+Aplicación web progresiva (PWA) para que los visitantes del **Centro Comercial Parque La Colina (Bogotá)** abran la app desde el **QR del tiquete**, consulten la **disponibilidad de parqueadero por zona y piso**, soliciten una **retención temporal simulada de 7 minutos**, reciban una **reasignación automática** si la zona se ocupa, sigan una **ruta animada en el mapa 3D del sótano** hasta su puesto y **guarden dónde dejaron el vehículo**. En la v2.0, un **agente de IA (Gemini)** reasigna el puesto cuando un carro sin FastParking lo ocupa, un **asistente de chat con IA** responde dudas del conductor y el sótano se ve en **3D real** con tráfico simulado.
 
 > **Prototipo académico.** La disponibilidad, los eventos de ocupación y los datos de zonas son **simulados e ilustrativos**. No hay integración con sensores, talanqueras ni sistemas de pago del centro comercial. Una retención **no garantiza** el cupo físico.
 
@@ -18,6 +20,8 @@ Docente: Leonardo Valenzuela · Ingeniería de Software · UNINPAHU · 2026
 |---|---|---|
 | Lenguaje | TypeScript | Un solo lenguaje tipado en frontend y backend |
 | Frontend | React 18 + Vite + vite-plugin-pwa | PWA instalable desde una URL o QR, sin tienda de apps |
+| 3D | three + @react-three/fiber + drei (+ postprocessing) | Sótano en 3D real, carros animados y navegación tipo GPS (D-25, D-26) |
+| IA | Google Gemini (`gemini-3.8-flash`) vía API compatible con OpenAI | Agentes con herramientas; proveedor intercambiable sin SDK (D-18, D-19) |
 | Backend | Node.js + Express | API REST ligera (monolito modular) con SSE nativo |
 | Validación | Zod | Valida en el servidor toda entrada (RNF-05) |
 | Base de datos | PostgreSQL 16 (driver `pg`, SQL explícito) | Integridad referencial, transacciones y bloqueo de filas para la concurrencia |
@@ -25,6 +29,7 @@ Docente: Leonardo Valenzuela · Ingeniería de Software · UNINPAHU · 2026
 | Pruebas | Vitest + Supertest | Pruebas unitarias y de integración contra PostgreSQL real |
 | Contenedores | Docker + Docker Compose | Ejecución reproducible con un solo comando |
 | CI | GitHub Actions | Ejecuta verificación de tipos y pruebas en cada push |
+| Nube | Render (API + PWA) y Neon (PostgreSQL) | HTTPS gratuito y redespliegue en cada push (D-27) |
 | Control de versiones | Git + GitHub | Historial y revisión docente |
 
 ## Arquitectura general
@@ -42,7 +47,13 @@ flowchart LR
   classDef ext stroke-dasharray: 5 5,color:#666
 ```
 
-Módulos del backend (`backend/src/modules`): `sessions`, `zones`, `retentions` (incluye el motor de reasignación y el planificador de expiraciones), `events` (adaptador de eventos) y `locations`.
+Módulos del backend (`backend/src/modules`): `sessions`, `zones` (zonas y puestos), `retentions` (reasignación, expiraciones y navegación sincronizada), `events` (adaptador de eventos), `locations`, `payments`, **`agent`** (agente LLM de reasignación, asistente y proveedor LLM) y **`traffic`** (tráfico simulado y carro intruso).
+
+Diagrama de componentes y despliegue v2.0:
+
+![Componentes v2.0](docs/diagramas/componentes-v2.png)
+
+Agentes de IA: [`docs/agente-llm.md`](docs/agente-llm.md).
 
 Documento técnico completo: [`docs/documento-tecnico.pdf`](docs/documento-tecnico.pdf) (y su versión editable `.docx`).
 
@@ -134,7 +145,7 @@ cd backend
 npm test
 ```
 
-30 pruebas automatizadas: reglas de negocio (unitarias) y casos de prueba CP-01 a CP-11 contra PostgreSQL real (incluida la prueba de concurrencia de dos conductores por el último cupo). Evidencia en [`docs/pruebas/`](docs/pruebas/).
+47 pruebas automatizadas: reglas de negocio (unitarias) y casos de prueba CP-01 a CP-15 (incluye el agente LLM con proveedor simulado, el plan B, el carro intruso y el asistente) contra PostgreSQL real (incluida la prueba de concurrencia de dos conductores por el último cupo). Evidencia en [`docs/pruebas/`](docs/pruebas/).
 
 ## Variables de entorno
 
@@ -152,6 +163,12 @@ No se suben secretos al repositorio: copia los archivos `.env.example` como `.en
 | `TARIFA_POR_MINUTO` | backend | Tarifa ilustrativa en COP (130) |
 | `MINUTOS_PARA_SALIR` | backend | Minutos para salir después de pagar (15) |
 | `POSTGRES_PASSWORD` | raíz | Contraseña local del contenedor de PostgreSQL |
+| `LLM_API_KEY` | backend | Clave de Google AI Studio (solo en `.env` local y en Render) |
+| `LLM_MODEL` | backend | Modelo (por defecto `gemini-3.8-flash`) |
+| `LLM_BASE_URL` | backend | Endpoint compatible con OpenAI |
+| `LLM_TIMEOUT_MS` | backend | Tiempo máximo de espera al LLM antes del plan B |
+| `DEMO_PIN` | backend | PIN de los controles de `/simulacion` |
+| `INTRUSO_MS` | backend | Segundos que tarda el carro intruso en llegar (9000) |
 
 ## API
 
@@ -170,6 +187,10 @@ No se suben secretos al repositorio: copia los archivos `.env.example` como `.en
 | POST | `/api/payments` | RF-11 (pago simulado) |
 | GET | `/api/payments` | RF-17 (historial) |
 | POST | `/api/simulator/events` | RF-06, RF-07, RF-12, RF-15 |
+| POST | `/api/asistente` | RF-21 (chat con IA) |
+| POST | `/api/retentions/:id/navigation` | RF-20 (sincroniza la navegación) |
+| GET | `/api/demo/estado` | RF-18, RF-20 (motor, verificación del LLM, decisiones) |
+| POST | `/api/demo/trafico` · `/api/demo/intruso` · `/api/demo/pin` | RF-19, RF-20 (requieren `x-demo-pin`) |
 | GET | `/api/events/stream` | RF-06 (SSE) |
 
 Las rutas protegidas requieren la cabecera `X-Session-Id`. Los errores tienen el formato `{ "error": { "code", "message", "details?" } }`.
@@ -193,7 +214,8 @@ También se puede ejecutar localmente con Docker Compose (opción A).
 ## Limitaciones
 
 - Retención temporal **simulada**, no garantizada (no bloquea físicamente un cupo).
-- Disponibilidad **por zona**, no por espacio individual.
+- Ocupación por puesto **simulada**; la zona sigue siendo la unidad de cupo.
+- La IA (Gemini) usa la capa gratuita: con muchas pruebas seguidas puede agotar la cuota (error 429) y entonces decide el plan B por reglas.
 - Eventos de ocupación **simulados**; sin conexión a sensores reales.
 - Plano **ilustrativo** del sótano; la ruta y la flecha son una **navegación simulada**, sin localización en vivo.
 - Pago **simulado** con tarifa ilustrativa ($130/min, configurable): no procesa dinero real ni guarda datos financieros.

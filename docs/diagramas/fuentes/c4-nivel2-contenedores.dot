@@ -5,9 +5,9 @@ graph [label="C4 · Nivel 2 — Contenedores de FastParking", compound=true];
 conductor [shape=box, style="rounded,filled", fillcolor="#052c37", color="#052c37", fontcolor="white", label=<<FONT POINT-SIZE="20">👤</FONT><BR/><B>Conductor / visitante</B><BR/><FONT POINT-SIZE="9">[Persona]</FONT><BR/><FONT POINT-SIZE="10">Navegador móvil</FONT>>];
 operador [shape=box, style="rounded,filled", fillcolor="#052c37", color="#052c37", fontcolor="white", label=<<FONT POINT-SIZE="20">👤</FONT><BR/><B>Operador de pruebas</B><BR/><FONT POINT-SIZE="9">[Persona]</FONT><BR/><FONT POINT-SIZE="10">Terminal</FONT>>];
 subgraph cluster_fp { label=<<B>FastParking</B> [Sistema de software]>; style="dashed,rounded"; color="#083E4D"; fontcolor="#083E4D"; fontsize=12;
-  pwa [shape=box, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>PWA FastParking</B><BR/><FONT POINT-SIZE="9">[Contenedor: React 18 + TypeScript + Vite, servida por nginx]</FONT><BR/><BR/><FONT POINT-SIZE="10">Solo celular. Tiquete con QR simulado, Inicio,<BR/>Mapa 3D (elegir puesto + ruta simulada),<BR/>Mi vehículo y Billetera (pago simulado).<BR/>Service worker: solo cachea la interfaz</FONT>>, fontcolor="white"];
-  api [shape=box, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>API FastParking</B><BR/><FONT POINT-SIZE="9">[Contenedor: Node.js + Express + TypeScript]</FONT><BR/><BR/><FONT POINT-SIZE="10">Monolito modular: reglas de negocio,<BR/>concurrencia, expiración, reasignación,<BR/>adaptador de eventos y notificaciones SSE</FONT>>, fontcolor="white"];
-  db [shape=cylinder, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>Base de datos</B><BR/><FONT POINT-SIZE="9">[Contenedor: PostgreSQL 16]</FONT><BR/><BR/><FONT POINT-SIZE="10">Pisos, zonas, sesiones, retenciones,<BR/>historial, eventos y ubicaciones</FONT>>, fontcolor="white"];
+  pwa [shape=box, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>PWA FastParking</B><BR/><FONT POINT-SIZE="9">[Contenedor: React 18 + TypeScript + Vite + Three.js]</FONT><BR/><BR/><FONT POINT-SIZE="10">Celular: tiquete QR, mapa 3D, flecha GPS, Mi vehículo,<BR/>Billetera y chat de ayuda con IA.<BR/>iPad (/simulacion): 3 sótanos, tráfico, carro intruso.<BR/>Servida por la misma API en Render</FONT>>, fontcolor="white"];
+  api [shape=box, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>API FastParking</B><BR/><FONT POINT-SIZE="9">[Contenedor: Node.js + Express + TypeScript · Render]</FONT><BR/><BR/><FONT POINT-SIZE="10">Monolito modular: reglas, concurrencia, expiración,<BR/>agente LLM de reasignación + plan B, asistente,<BR/>tráfico simulado y notificaciones SSE</FONT>>, fontcolor="white"];
+  db [shape=cylinder, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>Base de datos</B><BR/><FONT POINT-SIZE="9">[Contenedor: PostgreSQL 16 · Neon]</FONT><BR/><BR/><FONT POINT-SIZE="10">Pisos, zonas, puestos, sesiones, retenciones,<BR/>historial, eventos, ubicaciones, pagos<BR/>y decisiones del agente</FONT>>, fontcolor="white"];
   sim [shape=box, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>Simulador de eventos</B><BR/><FONT POINT-SIZE="9">[Contenedor: CLI Node.js (simulator/simular.mjs)]</FONT><BR/><BR/><FONT POINT-SIZE="10">Genera eventos ENTRADA/SALIDA<BR/>etiquetados como SIMULADOR</FONT>>, fontcolor="white"];
 }
 sens [shape=box, style="rounded,filled,dashed", fillcolor="#9aa8ad", color="#10242a", label=<<B>Sensores del parqueadero</B><BR/><FONT POINT-SIZE="9">[Sistema externo — FUTURO]</FONT><BR/><BR/><FONT POINT-SIZE="10">No integrado</FONT>>, fontcolor="white"];
@@ -15,7 +15,9 @@ conductor -> pwa [label="  Usa (HTTPS)"];
 operador -> sim [label="  Ejecuta escenarios"];
 pwa -> api [label="  REST JSON /api/*\n  + SSE /api/events/stream"];
 sim -> api [label="  POST /api/simulator/events\n  (x-simulator-key)"];
-api -> db [label="  SQL (pg) con transacciones\n  y SELECT … FOR UPDATE"];
+gem [shape=box, style="rounded,filled", fillcolor="#fff3e0", color="#c55a11", label=<<B>Google Gemini</B><BR/><FONT POINT-SIZE="9">[Sistema externo]</FONT><BR/><BR/><FONT POINT-SIZE="10">API compatible OpenAI · gemini-3.8-flash</FONT>>];
+api -> gem [color="#c55a11", fontcolor="#c55a11", label="  HTTPS chat/completions\n  con herramientas"];
+api -> db [label="  SQL (pg, SSL) con transacciones\n  y SELECT … FOR UPDATE"];
 sens -> api [style=dashed, label="  (futuro) mismo contrato\n  del adaptador"];
 {rank=same; conductor; operador}
 {rank=same; pwa; sim}

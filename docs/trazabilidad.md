@@ -38,3 +38,24 @@ Necesidad N-3: tiempo perdido haciendo fila en las cajas para pagar el parqueade
 | CP-08 | Ubicación | Se guarda y recupera zona, piso y referencia | idem |
 | CP-09 | Errores | 401 sin sesión, 400 validación, 404 ruta | idem |
 | Unitarias | Reglas de negocio puras | Cupo lógico, clasificación, orden de alternativas, transiciones, afectadas | `backend/tests/reglas.test.ts` |
+
+## Versión 2.0 — IA, simulación 3D y despliegue
+
+Necesidad N-4: el puesto reservado puede ser ocupado por un conductor que no usa FastParking.
+
+| Necesidad | Req. | Tarea / evento BPMN | Componente C4 (nivel 3) | Entidad MER | Código | Prueba |
+|---|---|---|---|---|---|---|
+| N-4 | RF-19 | Evento de mensaje "carro intruso ocupa el puesto" | Tráfico y demo · Procesador de eventos | PUESTO, EVENTO_OCUPACION | `modules/traffic/traffic.service.ts` · `modules/events/events.service.ts` | CP-12 |
+| N-4 | RF-18, RN-17 | Agente decide el nuevo puesto · el sistema valida · aviso al conductor | Agente LLM de reasignación · Motor de reasignación · Proveedor LLM | DECISION_AGENTE, RETENCION | `modules/agent/agent.service.ts` · `agent.rules.ts` · `retentions/reassignment.service.ts` | CP-13 |
+| N-1 | RF-20 | Seguir la ruta en el mapa 3D; tráfico en vivo | PWA (3D) · Notificador SSE · Tráfico y demo | PUESTO | `frontend/src/components/3d/*` · `frontend/src/simulacion/Simulacion.tsx` · `retentions/navigation.service.ts` | CP-14 + interfaz |
+| N-2, N-3 | RF-21, RN-19 | Consultar al asistente | Agente asistente | SESION_VISITA, UBICACION_VEHICULO, PAGO, RETENCION (lectura) | `modules/agent/assistant.service.ts` · `frontend/src/components/Asistente.tsx` | CP-15 |
+| N-1 | RNF-13 | — | Render (Web Service) + Neon | — | `render.yaml` · `backend/src/app.ts` (STATIC_DIR) | Verificación en producción |
+
+| Caso | Qué prueba | Resultado esperado | Archivo |
+|---|---|---|---|
+| CP-12 | Carro intruso sin LLM | Reasigna al puesto libre más cercano de la misma zona; motor REGLAS; decisión registrada | `backend/tests/agente.test.ts` |
+| CP-13 | Agente LLM (proveedor simulado) | Usa sus 4 herramientas, elige un puesto válido y redacta el aviso; error, timeout y propuesta inválida → plan B | idem |
+| CP-14 | Tráfico simulado | 40 movimientos mantienen `zona.ocupados` = puestos ocupados y no tocan puestos retenidos | idem |
+| CP-15 | Asistente | Responde por reglas y con LLM usando herramientas de solo lectura; exige sesión | idem |
+
+Total: **47 pruebas automatizadas en verde** (Vitest + Supertest contra PostgreSQL real).

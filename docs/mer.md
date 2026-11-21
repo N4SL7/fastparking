@@ -39,3 +39,18 @@ Diagrama: `diagramas/mer.png` · Implementación: `backend/db/migrations/001_esq
 | AUDITORIA | Reemplazada por HISTORIAL_RETENCION + EVENTO_OCUPACION (D-10) |
 | PAGO_SIMULADO | Reemplazada por PAGO, ligada a la sesión del tiquete y no a la retención (D-08 revisado) |
 | NODO_PLANO, TRAMO_PLANO | Sin rutas ni Dijkstra (D-05, D-06) |
+
+## Versión 2.0 — entidades nuevas
+
+| Entidad | Para qué existe (RF) | Atributos clave | Restricciones |
+|---|---|---|---|
+| PUESTO | Saber qué puesto exacto está ocupado: carro intruso y tráfico (RF-19, RF-20) | id_puesto (PK), id_zona (FK), numero, ocupado, actualizado_en | UNIQUE (id_zona, numero); `zona.ocupados` = número de puestos ocupados (función `fp_ajustar_puestos`) |
+| DECISION_AGENTE | Trazabilidad de cada decisión de la IA (RF-18, RNF-09) | id_decision (PK), id_retencion (FK), id_retencion_nueva (FK), id_evento (FK), motivo, motor, modelo, zona/puesto propuesto, propuesta_valida, pasos (JSONB), mensaje, error, latencia_ms | CHECK motor ∈ {LLM, REGLAS}; CHECK motivo ∈ {PUESTO_OCUPADO, CONFLICTO_OCUPACION} |
+
+Cambios en entidades existentes: `evento_ocupacion.numero_puesto` (evento sobre un puesto) e índice único `uq_retencion_vigente_por_puesto` (un puesto solo puede tener una retención VIGENTE). Migración: [`backend/db/migrations/002_ocupacion_por_puesto.sql`](../backend/db/migrations/002_ocupacion_por_puesto.sql).
+
+| Relación | Cardinalidad |
+|---|---|
+| ZONA — PUESTO | 1 : 1..N |
+| RETENCION — DECISION_AGENTE | 1 : 0..N |
+| EVENTO_OCUPACION — DECISION_AGENTE | 0..1 : 0..N |

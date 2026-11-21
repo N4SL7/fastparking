@@ -1,7 +1,7 @@
 digraph C4_3 { graph [fontname="Segoe UI,Arial,Helvetica,sans-serif", pad=0.4, nodesep=0.9, ranksep=1.0, bgcolor="white", labelloc=t, fontsize=16, fontcolor="#083E4D"];
 node [fontname="Segoe UI,Arial,Helvetica,sans-serif", fontsize=11, margin="0.25,0.15", width=2.6];
 edge [fontname="Segoe UI,Arial,Helvetica,sans-serif", fontsize=9.5, color="#4b6169", fontcolor="#33474e", arrowsize=0.8];
-graph [label="C4 · Nivel 3 — Componentes del contenedor API FastParking (backend/src)", nodesep=0.6, ranksep=0.9];
+graph [label="C4 · Nivel 3 — Componentes del contenedor API FastParking v2.0 (backend/src)", nodesep=0.6, ranksep=0.9];
 node [width=2.4];
 pwa [shape=box, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>PWA FastParking</B><BR/><FONT POINT-SIZE="9">[Contenedor]</FONT><BR/><BR/><FONT POINT-SIZE="10">React + TypeScript</FONT>>, fontcolor="white"];
 sim [shape=box, style="rounded,filled", fillcolor="#083E4D", color="#083E4D", label=<<B>Simulador de eventos</B><BR/><FONT POINT-SIZE="9">[Contenedor]</FONT><BR/><BR/><FONT POINT-SIZE="10">CLI Node.js</FONT>>, fontcolor="white"];
@@ -18,6 +18,10 @@ subgraph cluster_api { label=<<B>API FastParking</B> [Contenedor: Node.js + Expr
   ubi [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Ubicación del vehículo</B><BR/><FONT POINT-SIZE="9">[Componente · modules/locations]</FONT><BR/><BR/><FONT POINT-SIZE="10">Guarda y recupera zona<BR/>y referencia por sesión</FONT>>, fontcolor="white"];
   pagos [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Pagos</B><BR/><FONT POINT-SIZE="9">[Componente · modules/payments]</FONT><BR/><BR/><FONT POINT-SIZE="10">Liquidación por minuto, pago simulado<BR/>(1 por tiquete), comprobante e historial</FONT>>, fontcolor="white"];
   sse [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Notificador en tiempo real</B><BR/><FONT POINT-SIZE="9">[Componente · shared/realtime.ts]</FONT><BR/><BR/><FONT POINT-SIZE="10">Server-Sent Events: 'zonas'<BR/>y 'retencion' por sesión</FONT>>, fontcolor="white"];
+  agente [shape=box, style="rounded,filled", fillcolor="#13708a", color="#13708a", label=<<B>Agente LLM de reasignación</B><BR/><FONT POINT-SIZE="9">[Componente · modules/agent/agent.service]</FONT><BR/><BR/><FONT POINT-SIZE="10">Herramientas: ver_puestos_libres, calcular_distancia,<BR/>reasignar_puesto, avisar_conductor · plan B (agent.rules)</FONT>>, fontcolor="white"];
+  asis [shape=box, style="rounded,filled", fillcolor="#13708a", color="#13708a", label=<<B>Agente asistente</B><BR/><FONT POINT-SIZE="9">[Componente · modules/agent/assistant.service]</FONT><BR/><BR/><FONT POINT-SIZE="10">Chat: ver_mi_vehiculo, ver_mi_reserva,<BR/>ver_mi_cuenta, ver_disponibilidad (solo lectura)</FONT>>, fontcolor="white"];
+  llm [shape=box, style="rounded,filled", fillcolor="#13708a", color="#13708a", label=<<B>Proveedor LLM</B><BR/><FONT POINT-SIZE="9">[Componente · modules/agent/llm.provider]</FONT><BR/><BR/><FONT POINT-SIZE="10">fetch HTTPS · timeout · verificación al arrancar</FONT>>, fontcolor="white"];
+  traf [shape=box, style="rounded,filled", fillcolor="#13708a", color="#13708a", label=<<B>Tráfico y demo</B><BR/><FONT POINT-SIZE="9">[Componente · modules/traffic]</FONT><BR/><BR/><FONT POINT-SIZE="10">Tráfico aleatorio, carro intruso (DEMO_PIN),<BR/>navegación sincronizada</FONT>>, fontcolor="white"];
   repo [shape=box, style="rounded,filled", fillcolor="#0d5468", color="#0d5468", label=<<B>Acceso a datos</B><BR/><FONT POINT-SIZE="9">[Componente · db/pool.ts + *.repository.ts]</FONT><BR/><BR/><FONT POINT-SIZE="10">SQL parametrizado, withTransaction<BR/>con reintento ante deadlock</FONT>>, fontcolor="white"];
 }
 pwa -> http [label="  REST + SSE"];
@@ -31,5 +35,8 @@ ret -> sse; proc -> sse; exp -> sse;
 sse -> pwa [style=dashed, label="  eventos SSE"];
 ses -> repo; disp -> repo; ret -> repo; reas -> repo; exp -> repo; proc -> repo; ubi -> repo;
 repo -> db [label="  SQL"];
+gem [shape=box, style="rounded,filled", fillcolor="#fff3e0", color="#c55a11", label=<<B>Google Gemini</B><BR/><FONT POINT-SIZE="9">[Sistema externo]</FONT>>];
+reas -> agente [label=" decidir"]; agente -> llm; asis -> llm; llm -> gem [color="#c55a11"];
+http -> asis; http -> traf; traf -> proc [label=" OCUPAR / LIBERAR puesto"]; agente -> repo [label=" decision_agente"]; asis -> repo [label=" lectura"]; traf -> sse;
 {rank=same; pwa; sim}
 }

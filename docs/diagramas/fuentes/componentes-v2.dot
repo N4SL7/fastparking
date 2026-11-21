@@ -1,0 +1,50 @@
+digraph V2 {
+  graph [fontname="Arial", pad=0.5, nodesep=0.55, ranksep=0.85, bgcolor="white", labelloc=t, fontsize=20, fontcolor="#083E4D", compound=true, newrank=true,
+         label=<<B>FastParking v2.0 — Diagrama de componentes y despliegue</B><BR/><FONT POINT-SIZE="12" COLOR="#5a6f76">Quién se conecta con quién · datos simulados · prototipo académico</FONT><BR/> >];
+  node [fontname="Arial", fontsize=11, shape=box, style="rounded,filled", margin="0.22,0.12", color="#083E4D", fillcolor="#e4eff2", fontcolor="#10242a"];
+  edge [fontname="Arial", fontsize=9.5, color="#4b6169", fontcolor="#33474e", arrowsize=0.75];
+  subgraph cluster_usuarios { label=<<B>Usuarios y dispositivos</B>>; style="rounded,dashed"; color="#9fb0b5"; fontcolor="#083E4D";
+    cel  [label=<<B>Celular del conductor</B><BR/><FONT POINT-SIZE="9">PWA (React + Three.js)</FONT><BR/><FONT POINT-SIZE="9">Tiquete QR · Mapa 3D · Flecha GPS<BR/>Mi vehículo · Billetera · Chat de ayuda IA</FONT>>, fillcolor="#083E4D", fontcolor="white"];
+    ipad [label=<<B>iPad — /simulacion</B><BR/><FONT POINT-SIZE="9">3 sótanos en 3D · tráfico aleatorio<BR/>Carro intruso (PIN) · Decisiones de la IA</FONT>>, fillcolor="#083E4D", fontcolor="white"];
+    pc   [label=<<B>PC de la autora</B><BR/><FONT POINT-SIZE="9">Código (VS Code) · git push</FONT>>];
+  }
+  subgraph cluster_render { label=<<B>Render — Web Service (Node.js 22)</B>   https://fastparking.onrender.com>; style="rounded,filled"; fillcolor="#f6fafb"; color="#083E4D"; fontcolor="#083E4D";
+    estaticos [label=<<B>PWA compilada</B><BR/><FONT POINT-SIZE="9">frontend/dist servido por Express</FONT>>];
+    subgraph cluster_api { label=<<B>API FastParking</B> (Express + TypeScript, monolito modular)>; style="rounded,dashed"; color="#0d5468"; fontcolor="#0d5468";
+      http   [label=<<B>Capa HTTP</B><BR/><FONT POINT-SIZE="9">rutas REST · Zod · X-Session-Id</FONT>>];
+      sse    [label=<<B>Notificador SSE</B><BR/><FONT POINT-SIZE="9">zonas · retencion · agente · trafico</FONT>>];
+      ses    [label=<<B>Sesiones</B><BR/><FONT POINT-SIZE="9">sesión anónima desde el QR</FONT>>];
+      zon    [label=<<B>Zonas y puestos</B><BR/><FONT POINT-SIZE="9">cupo lógico · estado por puesto</FONT>>];
+      ret    [label=<<B>Retenciones</B><BR/><FONT POINT-SIZE="9">7 min · FOR UPDATE · expiración</FONT>>];
+      rea    [label=<<B>Motor de reasignación</B><BR/><FONT POINT-SIZE="9">valida y aplica (D-20)</FONT>>];
+      agr    [label=<<B>Agente LLM de reasignación</B><BR/><FONT POINT-SIZE="9">ver_puestos_libres · calcular_distancia<BR/>reasignar_puesto · avisar_conductor<BR/>plan B por reglas (D-21)</FONT>>, fillcolor="#0d5468", fontcolor="white"];
+      asi    [label=<<B>Agente asistente de ayuda</B><BR/><FONT POINT-SIZE="9">ver_mi_vehiculo · ver_mi_reserva<BR/>ver_mi_cuenta · ver_disponibilidad<BR/>solo lectura · plan B</FONT>>, fillcolor="#0d5468", fontcolor="white"];
+      llmp   [label=<<B>Proveedor LLM</B><BR/><FONT POINT-SIZE="9">API compatible OpenAI (fetch)<BR/>timeout · verificación al arrancar</FONT>>];
+      evt    [label=<<B>Eventos de ocupación</B><BR/><FONT POINT-SIZE="9">idempotencia · puesto/zona</FONT>>];
+      tra    [label=<<B>Motor de tráfico + demo</B><BR/><FONT POINT-SIZE="9">carro intruso · DEMO_PIN</FONT>>];
+      pag    [label=<<B>Pagos simulados</B><BR/><FONT POINT-SIZE="9">liquidación · QR de salida</FONT>>];
+      ubi    [label=<<B>Ubicación del vehículo</B>>];
+      datos  [label=<<B>Acceso a datos</B><BR/><FONT POINT-SIZE="9">driver pg · SQL parametrizado · transacciones</FONT>>, fillcolor="#ffffff"];
+    }
+  }
+  db [shape=cylinder, label=<<B>Neon — PostgreSQL 16</B><BR/><FONT POINT-SIZE="9">piso · zona · puesto · sesion_visita · retencion<BR/>historial_retencion · evento_ocupacion · decision_agente<BR/>ubicacion_vehiculo · pago</FONT>>, fillcolor="#083E4D", fontcolor="white", margin="0.3,0.18"];
+  gem [label=<<B>Google Gemini</B><BR/><FONT POINT-SIZE="9">[Externo] gemini-3.8-flash<BR/>chat/completions con herramientas</FONT>>, fillcolor="#fff3e0", color="#c55a11"];
+  gh  [label=<<B>GitHub</B><BR/><FONT POINT-SIZE="9">N4SL7/fastparking · CI (Actions)</FONT>>, fillcolor="#f2f2f2", color="#7f7f7f"];
+  cel -> estaticos [xlabel="HTTPS: abre con el QR"];
+  cel -> http [label="REST JSON + X-Session-Id"];
+  ipad -> http [label="REST + PIN"];
+  sse -> cel [label="SSE en vivo", style=dashed];
+  sse -> ipad [label="SSE en vivo", style=dashed];
+  http -> ses; http -> zon; http -> ret; http -> pag; http -> ubi; http -> asi; http -> tra;
+  tra -> evt [label="OCUPAR / LIBERAR puesto"];
+  evt -> rea [label="puesto retenido ocupado"];
+  rea -> agr [label="decidir"];
+  agr -> llmp; asi -> llmp;
+  llmp -> gem [label="HTTPS · LLM_API_KEY", color="#c55a11", fontcolor="#c55a11"];
+  ses -> datos; zon -> datos; ret -> datos; evt -> datos; rea -> datos; pag -> datos; ubi -> datos;
+  agr -> datos [label="decision_agente"]; asi -> datos [label="solo lectura"];
+  datos -> db [label="SSL (sslmode=require) · DATABASE_URL", penwidth=1.6, color="#083E4D", fontcolor="#083E4D"];
+  pc -> gh [label="git push"];
+  gh -> estaticos [label="redespliegue automático", lhead=cluster_render, style=dashed];
+  { rank=same; db; gem; }
+}
