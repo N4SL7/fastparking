@@ -84,7 +84,7 @@ Cada decisión guarda motor (`LLM` / `REGLAS`), modelo, puesto propuesto, si la 
 |---|---|---|
 | `LLM_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai` | `.env` local / Render |
 | `LLM_API_KEY` | *(clave de Google AI Studio)* | **Solo** `.env` local y panel de Render |
-| `LLM_MODEL` | `gemini-2.5-flash` | `.env` / Render (cámbialo si AI Studio indica otro modelo vigente) |
+| `LLM_MODEL` | `gemini-3.8-flash` | `.env` / Render (cámbialo si AI Studio indica otro modelo vigente) |
 | `LLM_TIMEOUT_MS` | `8000` | `.env` / Render |
 
 Cambiar a otro proveedor compatible (Groq, OpenAI) solo requiere cambiar `LLM_BASE_URL` y `LLM_MODEL` (D-19).

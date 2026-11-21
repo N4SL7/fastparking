@@ -48,7 +48,7 @@ export const config = {
     baseUrl: (process.env.LLM_BASE_URL ?? 'https://generativelanguage.googleapis.com/v1beta/openai').replace(/\/+$/, ''),
     // Se limpian espacios, saltos de línea y comillas que suelen colarse al pegar la clave en un panel.
     apiKey: limpiarClave(process.env.LLM_API_KEY ?? ''),
-    model: (process.env.LLM_MODEL ?? 'gemini-2.5-flash').trim(),
+    model: (process.env.LLM_MODEL ?? 'gemini-3.8-flash').trim(),
     timeoutMs: entero('LLM_TIMEOUT_MS', 8_000),
   },
   /** D-24: PIN de los controles de la demostración (/simulacion). Vacío = controles deshabilitados. */
