@@ -4,7 +4,7 @@ import { detectarCalidad } from '../lib/calidad';
 import { construirPlano, longitud, rutaHastaPuesto, siguienteInstruccion, type Puesto, type ZonaEnPlano } from '../lib/plano';
 import type { Piso, Retencion, Ubicacion, Zona } from '../types';
 import { aX, aZ } from './3d/escena';
-import { PisoSotano3D } from './3d/PisoSotano3D';
+import { PisoSotano3D, type IntrusoEnCamino } from './3d/PisoSotano3D';
 import { Ruta3D } from './3d/Ruta3D';
 import { CamaraGeneral, CamaraSeguimiento, Lienzo3D } from './3d/Sotano3D';
 import { IconoNavegar } from './iconos';
@@ -33,6 +33,7 @@ export function MapaSotano({
   onLlegar,
   ocupado,
   soloLectura = false,
+  intrusosEnCamino,
 }: {
   pisos: Piso[];
   retencion: Retencion | null;
@@ -43,6 +44,7 @@ export function MapaSotano({
   onLlegar: (puesto: number) => void;
   ocupado: boolean;
   soloLectura?: boolean;
+  intrusosEnCamino?: IntrusoEnCamino[];
 }) {
   const pisoDe = (idZona?: number) => pisos.find((p) => p.zonas.some((z) => z.idZona === idZona));
   const [idPiso, setIdPiso] = useState((pisoDe(retencion?.idZona) ?? pisoDe(ubicacion?.idZona) ?? pisos[0])?.idPiso);
@@ -91,7 +93,12 @@ export function MapaSotano({
   const destino = useMemo(() => {
     for (const z of plano) {
       const p = z.puestos.find((x) => x.estado === 'mio');
-      if (p) return { puesto: p, lado: z.lado, zona: z.zona };
+      if (p) return { puesto: p, lado: z.lado, zona: z.zona, esMiCarro: false };
+    }
+    // RF-09: sin retención, el destino es TU carro estacionado ("¿dónde dejé mi carro?").
+    for (const z of plano) {
+      const p = z.puestos.find((x) => x.estado === 'mi-vehiculo');
+      if (p) return { puesto: p, lado: z.lado, zona: z.zona, esMiCarro: true };
     }
     return null;
   }, [plano]);
@@ -226,6 +233,7 @@ export function MapaSotano({
             calidad={calidad}
             seleccion={seleccion ? { idZona: seleccion.zona.idZona, numero: seleccion.puesto } : null}
             intruso={intruso}
+            intrusosEnCamino={intrusosEnCamino}
             idZonaDestacada={retencion?.idZona ?? seleccion?.zona.idZona ?? null}
             onTocarPuesto={tocarPuesto}
             etiquetas={!navegando}
@@ -245,7 +253,8 @@ export function MapaSotano({
             </span>
             {llego ? (
               <span>
-                Llegaste a <strong>{destino!.zona.codigo}</strong> · Puesto {dos(destino!.puesto.numero)}
+                {destino!.esMiCarro ? 'Aquí está tu carro: ' : 'Llegaste a '}
+                <strong>{destino!.zona.codigo}</strong> · Puesto {dos(destino!.puesto.numero)}
               </span>
             ) : (
               <span>
@@ -260,9 +269,11 @@ export function MapaSotano({
         )}
         {llego && (
           <div className="mapa-escena__acciones">
-            <button type="button" className="boton boton--grande" disabled={ocupado} onClick={() => onLlegar(destino!.puesto.numero)}>
-              Confirmar que estacioné aquí
-            </button>
+            {!destino!.esMiCarro && (
+              <button type="button" className="boton boton--grande" disabled={ocupado} onClick={() => onLlegar(destino!.puesto.numero)}>
+                Confirmar que estacioné aquí
+              </button>
+            )}
             <button type="button" className="boton boton--secundario boton--chico" onClick={navegar}>
               Repetir ruta
             </button>
@@ -316,7 +327,8 @@ export function MapaSotano({
       <div className="mapa__acciones" ref={acciones}>
         {destino && !navegando && (
           <button type="button" className="boton boton--grande" onClick={navegar}>
-            <IconoNavegar size={18} /> Ir a {destino.zona.codigo} · P{dos(destino.puesto.numero)}
+            <IconoNavegar size={18} />{' '}
+            {destino.esMiCarro ? `Llévame a mi carro (${destino.zona.codigo} · P${dos(destino.puesto.numero)})` : `Ir a ${destino.zona.codigo} · P${dos(destino.puesto.numero)}`}
           </button>
         )}
       </div>

@@ -58,6 +58,7 @@ demoRouter.post(
   requerirPin,
   asyncHandler(async (req, res) => {
     const { idSesion } = IntrusoBody.parse(req.body ?? {});
-    res.status(201).json(await lanzarIntruso(idSesion));
+    const r = await lanzarIntruso(idSesion);
+    res.status('estado' in r ? 202 : 201).json(r);
   }),
 );

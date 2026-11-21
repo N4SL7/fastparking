@@ -14,6 +14,7 @@ export default defineConfig({
       LLM_API_KEY: '',
       LLM_TIMEOUT_MS: '400',
       DEMO_PIN: 'pin-de-pruebas',
+      INTRUSO_MS: '0',
     },
   },
 });

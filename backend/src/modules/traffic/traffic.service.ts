@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { config } from '../../config.js';
 import { pool } from '../../db/pool.js';
 import { AppError } from '../../shared/errors.js';
 import { notificador } from '../../shared/realtime.js';
@@ -15,7 +16,7 @@ export interface EstadoTrafico {
   eventosGenerados: number;
 }
 
-const estado: EstadoTrafico = { activo: false, intervaloMs: 6_000, eventosGenerados: 0 };
+const estado: EstadoTrafico = { activo: false, intervaloMs: 8_000, eventosGenerados: 0 };
 let temporizador: NodeJS.Timeout | null = null;
 let apagadoAutomatico: NodeJS.Timeout | null = null;
 const APAGADO_AUTOMATICO_MS = 20 * 60_000; // evita consumir la base de datos gratuita si alguien olvida apagarlo
@@ -75,7 +76,9 @@ export function cambiarTrafico(activo: boolean, intervaloMs?: number): EstadoTra
  * RF-19: "carro intruso". Un vehículo que NO usa FastParking ocupa el puesto retenido por un conductor.
  * Si se indica la sesión, se usa su retención; si no, la retención vigente más reciente.
  */
-export async function lanzarIntruso(idSesion?: string): Promise<ResultadoEvento> {
+export type ResultadoIntruso = ResultadoEvento | { estado: 'EN_CAMINO'; zona: string; puesto: number; llegaEnMs: number };
+
+export async function lanzarIntruso(idSesion?: string): Promise<ResultadoIntruso> {
   const { rows } = await pool.query<{ zona: string; puesto: number }>(
     `SELECT z.codigo AS zona, r.puesto FROM retencion r JOIN zona z ON z.id_zona = r.id_zona
      WHERE r.estado = 'VIGENTE' AND r.vence_en > now() AND r.puesto IS NOT NULL
@@ -86,13 +89,24 @@ export async function lanzarIntruso(idSesion?: string): Promise<ResultadoEvento>
   if (rows.length === 0) {
     throw new AppError(409, 'SIN_RETENCION_VIGENTE', 'No hay ninguna retención vigente con puesto: primero reserva un puesto en el celular.');
   }
-  return procesarEvento({
-    idEvento: randomUUID(),
-    codigoZona: rows[0].zona,
-    tipo: 'ENTRADA',
-    cantidad: 1,
-    puesto: rows[0].puesto,
-    fuente: 'SIMULADOR',
-    ocurridoEn: new Date(),
-  });
+  const ocupar = () =>
+    procesarEvento({
+      idEvento: randomUUID(),
+      codigoZona: rows[0].zona,
+      tipo: 'ENTRADA',
+      cantidad: 1,
+      puesto: rows[0].puesto,
+      fuente: 'SIMULADOR',
+      ocurridoEn: new Date(),
+    });
+  if (config.intrusoMs === 0) return ocupar();
+
+  // El intruso entra por la otra puerta y tarda unos segundos: si llega antes que el conductor, ocupa el puesto
+  // y el agente reasigna; si el conductor llega primero, el puesto ya está ocupado y el intruso no lo toma.
+  const { rows: z } = await pool.query<{ id_zona: number }>('SELECT id_zona FROM zona WHERE codigo = $1', [rows[0].zona]);
+  notificador.publicarIntruso({ idZona: z[0].id_zona, puesto: rows[0].puesto, duracionMs: config.intrusoMs, transcurridoMs: 0 });
+  setTimeout(() => {
+    ocupar().catch((err) => console.error('[intruso]', (err as Error).message));
+  }, config.intrusoMs).unref();
+  return { estado: 'EN_CAMINO', zona: rows[0].zona, puesto: rows[0].puesto, llegaEnMs: config.intrusoMs };
 }

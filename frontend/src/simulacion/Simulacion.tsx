@@ -10,6 +10,7 @@ import { construirPlano, rutaHastaPuesto, type ZonaEnPlano } from '../lib/plano'
 import { qrComoPath } from '../lib/qr';
 import type { Disponibilidad, EstadoDemo } from '../types';
 import { pedirDemo } from './demoApi';
+import { useIntrusos } from '../hooks/useIntrusos';
 
 const SEPARACION = 46; // distancia entre pisos en la vista general (unidades 3D)
 const VELOCIDADES = [
@@ -67,6 +68,9 @@ export function Simulacion() {
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: 'ok' | 'error' } | null>(null);
   const [intrusos, setIntrusos] = useState<Map<number, number>>(new Map()); // idZona → puesto que parpadea
   const previos = useRef<Map<string, string>>(new Map());
+  const { intrusos: intrusosEnCamino, registrarIntruso } = useIntrusos();
+  // Puesto actual → identidad del carro vinotinto (se conserva al reasignar).
+  const [alias, setAlias] = useState<Map<string, string>>(new Map());
   // Navegaciones del celular sincronizadas por el servidor: clave "idZona-puesto" → inicio local y duración.
   const [navs, setNavs] = useState<Map<string, NavegacionSincronizada>>(new Map());
   const registrarNav = useCallback((n: { idZona: number; puesto: number; duracionMs: number; transcurridoMs: number }) => {
@@ -120,14 +124,32 @@ export function Simulacion() {
     }, 10_000);
     const fuente = new EventSource('/api/events/stream');
     fuente.addEventListener('zonas', () => cargarZonas());
-    fuente.addEventListener('agente', () => cargarDemo());
+    fuente.addEventListener('agente', (ev) => {
+      // Reasignación: el carro vinotinto del puesto anterior es el mismo que va al puesto nuevo (no se teletransporta).
+      const d = JSON.parse((ev as MessageEvent).data) as {
+        reasignaciones?: { de: { idZona: number; puesto: number | null }; a: { idZona: number; puesto: number } | null }[];
+      };
+      if (d.reasignaciones?.length) {
+        setAlias((m) => {
+          const n = new Map(m);
+          for (const r of d.reasignaciones!) {
+            if (!r.a || r.de.puesto === null) continue;
+            const de = `${r.de.idZona}-${r.de.puesto}`;
+            n.set(`${r.a.idZona}-${r.a.puesto}`, n.get(de) ?? de);
+          }
+          return n;
+        });
+      }
+      cargarDemo();
+    });
     fuente.addEventListener('trafico', () => cargarDemo());
+    fuente.addEventListener('intruso', (ev) => registrarIntruso(JSON.parse((ev as MessageEvent).data)));
     fuente.addEventListener('navegacion', (ev) => registrarNav(JSON.parse((ev as MessageEvent).data)));
     return () => {
       clearInterval(sondeo);
       fuente.close();
     };
-  }, [cargarZonas, cargarDemo, registrarNav]);
+  }, [cargarZonas, cargarDemo, registrarNav, registrarIntruso]);
 
   useEffect(() => {
     if (pin) desbloquear(pin, true);
@@ -166,9 +188,17 @@ export function Simulacion() {
 
   async function intruso() {
     try {
-      const r = await pedirDemo<{ conflictos: { mensaje: string; motor: string }[] }>('/api/demo/intruso', { method: 'POST', body: '{}' }, pin);
-      const c = r.conflictos[0];
-      avisar(c ? `Agente (${c.motor}): ${c.mensaje}` : 'El intruso ocupó el puesto.', 'ok');
+      const r = await pedirDemo<{ estado?: string; zona?: string; puesto?: number; llegaEnMs?: number; conflictos?: { mensaje: string; motor: string }[] }>(
+        '/api/demo/intruso',
+        { method: 'POST', body: '{}' },
+        pin,
+      );
+      if (r.estado === 'EN_CAMINO') {
+        avisar(`Carro intruso en camino a ${r.zona}-${dos(r.puesto ?? 0)}: llega en ${Math.round((r.llegaEnMs ?? 0) / 1000)} s.`, 'ok');
+      } else {
+        const c = r.conflictos?.[0];
+        avisar(c ? `Agente (${c.motor}): ${c.mensaje}` : 'El intruso ocupó el puesto.', 'ok');
+      }
       await Promise.all([cargarZonas(), cargarDemo()]);
     } catch (e) {
       avisar((e as Error).message, 'error');
@@ -196,7 +226,11 @@ export function Simulacion() {
   );
 
   const conectados = pisos.flatMap((p) =>
-    p.zonas.flatMap((z) => (z.puestos ?? []).filter((pu) => pu.estado === 'RETENIDO').map((pu) => `${z.codigo}-${dos(pu.numero)}`)),
+    p.zonas.flatMap((z) =>
+      (z.puestos ?? [])
+        .filter((pu) => pu.estado === 'RETENIDO' || pu.conFastParking)
+        .map((pu) => `${pu.estado === 'RETENIDO' ? 'En camino a' : 'Estacionado en'} ${z.codigo}-${dos(pu.numero)}`),
+    ),
   );
   const libresPorPiso = pisos.map((p) => ({ codigo: p.codigo, libres: p.zonas.reduce((s, z) => s + z.cupoLogico, 0) }));
   const enlaceApp = `${window.location.origin}/`;
@@ -244,11 +278,12 @@ export function Simulacion() {
                       return null;
                     })()}
                     etiquetas={vista !== 'general' || calidad.nivel === 'alto'}
+                    intrusosEnCamino={intrusosEnCamino}
                   />
                   {/* Un carro vinotinto por conductor de FastParking: lleva su propia key estable por zona para
                       que, al ser reasignado dentro de la zona, gire y continúe desde donde iba. */}
                   {conductoresDe(plano).map((c) => (
-                    <CarroConductor key={c.clave} ruta={c.ruta} centro={c.centro} nav={navs.get(c.puesto) ?? null} faros={calidad.faros} />
+                    <CarroConductor key={`conductor-${alias.get(c.puesto) ?? c.puesto}`} ruta={c.ruta} centro={c.centro} nav={navs.get(c.puesto) ?? null} faros={calidad.faros} />
                   ))}
                 </group>
               );
@@ -321,7 +356,8 @@ export function Simulacion() {
               <ul className="sim__conductores">
                 {conectados.map((c) => (
                   <li key={c}>
-                    <span className="sim__punto-vino" /> En camino a <b>{c}</b>
+                    <span className="sim__punto-vino" /> {c.replace(/ (\S+)$/, ' ')}
+                    <b>{c.split(' ').pop()}</b>
                   </li>
                 ))}
               </ul>

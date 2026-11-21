@@ -54,7 +54,7 @@ export interface Cuadro {
   t: number; // segundos desde el inicio de la animación
 }
 
-const VELOCIDAD = 50; // unidades de plano por segundo (≈ 6 m/s, ritmo realista dentro de un parqueadero)
+const VELOCIDAD = 32; // unidades de plano por segundo (≈ 4 m/s, ritmo tranquilo dentro de un parqueadero)
 const ABAJO = -Math.PI / 2; // mirando hacia +Z (hacia el fondo del sótano)
 const ARRIBA = Math.PI / 2; // mirando hacia -Z (hacia la rampa)
 
@@ -63,7 +63,7 @@ function cuadros(puntos: { x: number; y: number; yaw: number }[]): Cuadro[] {
   return puntos.map((p, i) => {
     if (i > 0) {
       const a = puntos[i - 1];
-      t += Math.max(1.4, Math.hypot(p.x - a.x, p.y - a.y) / VELOCIDAD);
+      t += Math.max(2, Math.hypot(p.x - a.x, p.y - a.y) / VELOCIDAD);
     }
     return { x: aX(p.x), z: aZ(p.y), yaw: p.yaw, t };
   });
@@ -77,6 +77,20 @@ export function trayectoEntrada(p: Puesto, lado: 'izq' | 'der'): Cuadro[] {
     { x: CENTRO_CARRIL + (lado === 'izq' ? 6 : -6), y: p.cy + 18, yaw: ABAJO },
     { x: p.cx, y: p.cy, yaw: yawEstacionado(lado) },
   ]);
+}
+
+/**
+ * RF-19: el carro intruso entra por la OTRA puerta (el fondo del sótano), sube por la vía y se mete de frente
+ * en el puesto retenido. Los tiempos se escalan para que llegue exactamente cuando el servidor ocupa el puesto.
+ */
+export function trayectoIntruso(p: Puesto, lado: 'izq' | 'der', duracionMs: number): Cuadro[] {
+  const base = cuadros([
+    { x: CENTRO_CARRIL, y: PLANO.alto + 40, yaw: ARRIBA },
+    { x: CENTRO_CARRIL, y: p.cy + 26, yaw: ARRIBA },
+    { x: p.cx, y: p.cy, yaw: lado === 'izq' ? Math.PI : 0 },
+  ]);
+  const total = base[base.length - 1].t || 1;
+  return base.map((c) => ({ ...c, t: (c.t / total) * (duracionMs / 1000) }));
 }
 
 /** Un carro sale del puesto hacia la vía y sube por la rampa. */

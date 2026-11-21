@@ -51,6 +51,8 @@ export const config = {
     model: (process.env.LLM_MODEL ?? 'gemini-3.8-flash').trim(),
     timeoutMs: entero('LLM_TIMEOUT_MS', 8_000),
   },
+  /** RF-19: segundos que tarda el carro intruso en llegar al puesto (entra por la otra puerta). 0 = inmediato. */
+  intrusoMs: process.env.INTRUSO_MS === '0' ? 0 : entero('INTRUSO_MS', 9_000),
   /** D-24: PIN de los controles de la demostración (/simulacion). Vacío = controles deshabilitados. */
   demoPin: process.env.DEMO_PIN ?? '',
 } as const;

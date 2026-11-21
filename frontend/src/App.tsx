@@ -273,6 +273,7 @@ export default function App() {
               pisos={datos.pisos}
               retencion={retencion}
               ubicacion={retencion ? null : ubicacion}
+              intrusosEnCamino={tiempoReal.intrusos}
               iniciarNavegacion={pedirNavegacion}
               onNavegacionIniciada={() => setPedirNavegacion(false)}
               onReservar={retener}
@@ -282,7 +283,20 @@ export default function App() {
           </>
         )}
 
-        {pestana === 'vehiculo' && <MiVehiculo ingreso={ingreso} ubicacion={ubicacion} />}
+        {pestana === 'vehiculo' && (
+          <MiVehiculo
+            ingreso={ingreso}
+            ubicacion={ubicacion}
+            onIrAlCarro={
+              ubicacion && !retencion
+                ? () => {
+                    setPestana('mapa');
+                    setPedirNavegacion(true);
+                  }
+                : undefined
+            }
+          />
+        )}
 
         {pestana === 'billetera' && <Billetera ahora={ahora} onAviso={avisar} onNuevoIngreso={sesion.nuevoIngreso} />}
       </main>

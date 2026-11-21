@@ -105,7 +105,16 @@ export async function procesarEvento(evento: EventoNormalizado): Promise<Resulta
 
   if (resultado.resultado === 'APLICADO') {
     notificador.publicarZonasActualizadas();
+    const reasignaciones: Parameters<typeof notificador.publicarDecisionAgente>[0] = [];
     for (const c of resultado.conflictos) {
+      const anterior = await buscarPorId(pool, c.anterior);
+      const nueva = c.tipo === 'REASIGNADA' ? await buscarPorId(pool, c.nueva) : null;
+      if (anterior) {
+        reasignaciones.push({
+          de: { idZona: anterior.idZona, puesto: anterior.puesto },
+          a: nueva && nueva.puesto ? { idZona: nueva.idZona, puesto: nueva.puesto } : null,
+        });
+      }
       notificador.publicarRetencion(c.idSesion, {
         tipo: c.tipo,
         anterior: await buscarPorId(pool, c.anterior),
@@ -114,7 +123,7 @@ export async function procesarEvento(evento: EventoNormalizado): Promise<Resulta
         motor: c.motor,
       });
     }
-    if (resultado.conflictos.length > 0) notificador.publicarDecisionAgente();
+    if (resultado.conflictos.length > 0) notificador.publicarDecisionAgente(reasignaciones);
   }
   return resultado;
 }

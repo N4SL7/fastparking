@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import type { CambioRetencion, Disponibilidad } from '../types';
+import { useIntrusos } from './useIntrusos';
 
 const SONDEO_MS = 15_000; // respaldo por si SSE se cae (D-09)
 const DESACTUALIZADO_MS = 45_000; // RF-13: pasado este tiempo sin datos nuevos, se advierte
@@ -15,6 +16,7 @@ export function useTiempoReal(idSesion: string | null, alCambiarRetencion: (c: C
   const [error, setError] = useState<string | null>(null);
   const [conectadoSSE, setConectadoSSE] = useState(false);
   const [ahora, setAhora] = useState(Date.now());
+  const { intrusos, registrarIntruso } = useIntrusos();
   const callbackRef = useRef(alCambiarRetencion);
   callbackRef.current = alCambiarRetencion;
 
@@ -39,6 +41,7 @@ export function useTiempoReal(idSesion: string | null, alCambiarRetencion: (c: C
     fuente.onopen = () => setConectadoSSE(true);
     fuente.onerror = () => setConectadoSSE(false);
     fuente.addEventListener('zonas', () => recargar());
+    fuente.addEventListener('intruso', (ev) => registrarIntruso(JSON.parse((ev as MessageEvent).data)));
     fuente.addEventListener('retencion', (ev) => callbackRef.current(JSON.parse((ev as MessageEvent).data)));
 
     return () => {
@@ -46,8 +49,8 @@ export function useTiempoReal(idSesion: string | null, alCambiarRetencion: (c: C
       clearInterval(reloj);
       fuente.close();
     };
-  }, [idSesion, recargar]);
+  }, [idSesion, recargar, registrarIntruso]);
 
   const desactualizado = ultimaCarga === null || ahora - ultimaCarga > DESACTUALIZADO_MS || error !== null;
-  return { datos, ultimaCarga, error, conectadoSSE, desactualizado, ahora, recargar };
+  return { datos, ultimaCarga, error, conectadoSSE, desactualizado, ahora, recargar, intrusos };
 }

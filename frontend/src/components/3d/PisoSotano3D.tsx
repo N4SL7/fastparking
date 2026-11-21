@@ -14,6 +14,7 @@ import {
   aZ,
   colorCarro,
   trayectoEntrada,
+  trayectoIntruso,
   trayectoSalida,
   yawEstacionado,
   type Cuadro,
@@ -21,6 +22,13 @@ import {
 
 const ALTO_MURO = 1.1;
 const COLUMNAS_Y = [200, 420, 640, 860];
+
+export interface IntrusoEnCamino {
+  idZona: number;
+  numero: number;
+  inicioLocal: number;
+  duracionMs: number;
+}
 
 interface CarroEnEscena {
   clave: string;
@@ -43,6 +51,7 @@ function useCarros(
   plano: ZonaEnPlano[],
   animar: boolean,
   claveIntruso: string | null,
+  sinAnimar: Set<string>,
 ): [CarroEnEscena[], (clave: string) => void] {
   const [carros, setCarros] = useState<Map<string, CarroEnEscena>>(new Map());
   const primera = useRef(true);
@@ -66,7 +75,9 @@ function useCarros(
             if (previo.propio !== propio) siguiente.set(clave, { ...previo, propio });
             continue;
           }
-          const anima = animar && !primera.current && !llegoElConductor;
+          // El intruso que ya llegó (animado aparte) queda estacionado: no vuelve a entrar desde la rampa.
+          // El carro del conductor (vinotinto) ya llegó animado por su propio componente: aparece estacionado.
+          const anima = animar && !primera.current && !llegoElConductor && !propio && !sinAnimar.has(clave);
           siguiente.set(clave, {
             clave,
             puesto: p,
@@ -260,6 +271,7 @@ export function PisoSotano3D({
   onTocarPuesto,
   animarCarros = true,
   etiquetas = true,
+  intrusosEnCamino,
 }: {
   plano: ZonaEnPlano[];
   codigoPiso: string;
@@ -270,11 +282,18 @@ export function PisoSotano3D({
   onTocarPuesto?: (z: ZonaEnPlano, p: Puesto) => void;
   animarCarros?: boolean;
   etiquetas?: boolean;
+  /** RF-19: carros intrusos que vienen en camino (llegan cuando el servidor ocupa el puesto). */
+  intrusosEnCamino?: IntrusoEnCamino[];
 }) {
-  const [carros, retirar] = useCarros(plano, animarCarros, intruso ? `${intruso.idZona}-${intruso.numero}` : null);
+  const clavesEnCamino = useMemo(
+    () => new Set((intrusosEnCamino ?? []).map((i) => `${i.idZona}-${i.numero}`)),
+    [intrusosEnCamino],
+  );
+  const [carros, retirar] = useCarros(plano, animarCarros, intruso ? `${intruso.idZona}-${intruso.numero}` : null, clavesEnCamino);
   // Los carros intrusos quedan naranja mientras sigan en el puesto que le quitaron al conductor.
   const intrusos = useRef(new Set<string>());
   if (intruso) intrusos.current.add(`${intruso.idZona}-${intruso.numero}`);
+  for (const k of clavesEnCamino) intrusos.current.add(k);
   const colorDe = (c: CarroEnEscena) =>
     c.propio ? COLOR.conductor : intrusos.current.has(c.clave) ? COLOR.carroIntruso : c.color;
   const via = useMemo(
@@ -340,6 +359,20 @@ export function PisoSotano3D({
           onTocar={onTocarPuesto}
         />
       ))}
+      {(intrusosEnCamino ?? []).map((i) => {
+        const z = plano.find((x) => x.zona.idZona === i.idZona);
+        const p = z?.puestos[i.numero - 1];
+        if (!z || !p || ocupa(p)) return null; // cuando el puesto ya figura ocupado, lo dibuja la lista de carros
+        return (
+          <CarroAnimado
+            key={`intruso-${i.idZona}-${i.numero}-${i.inicioLocal}`}
+            trayecto={trayectoIntruso(p, z.lado, i.duracionMs)}
+            inicio={i.inicioLocal}
+            color={COLOR.carroIntruso}
+            faros={calidad.faros}
+          />
+        );
+      })}
       {carros.map((c) =>
         c.trayecto ? (
           <CarroAnimado
@@ -351,7 +384,11 @@ export function PisoSotano3D({
             alTerminar={() => retirar(c.clave)}
           />
         ) : (
-          <group key={c.clave} position={[aX(c.puesto.cx), 0, aZ(c.puesto.cy)]} rotation-y={yawEstacionado(c.lado)}>
+          <group
+            key={c.clave}
+            position={[aX(c.puesto.cx), 0, aZ(c.puesto.cy)]}
+            rotation-y={yawEstacionado(c.lado) + (intrusos.current.has(c.clave) ? Math.PI : 0)}
+          >
             <ModeloCarro color={colorDe(c)} faros={false} resaltado={c.propio ? COLOR.mio : undefined} />
           </group>
         ),

@@ -1,9 +1,17 @@
 import type { Ubicacion } from '../types';
-import { IconoCarro, IconoReloj, IconoUbicacion } from './iconos';
+import { IconoCarro, IconoNavegar, IconoReloj, IconoUbicacion } from './iconos';
 import { horaCorta } from './ui';
 
 /** RF-09: solo lo esencial — hora de entrada y lugar donde quedó el vehículo. */
-export function MiVehiculo({ ingreso, ubicacion }: { ingreso: string | null; ubicacion: Ubicacion | null }) {
+export function MiVehiculo({
+  ingreso,
+  ubicacion,
+  onIrAlCarro,
+}: {
+  ingreso: string | null;
+  ubicacion: Ubicacion | null;
+  onIrAlCarro?: () => void;
+}) {
   return (
     <div className="pila">
       <section className="tarjeta tarjeta--marca vehiculo" aria-labelledby="titulo-vehiculo">
@@ -28,6 +36,12 @@ export function MiVehiculo({ ingreso, ubicacion }: { ingreso: string | null; ubi
           <span className="resumen__rotulo">{ubicacion?.puesto ? `Puesto ${String(ubicacion.puesto).padStart(2, '0')}` : 'Lugar'}</span>
         </div>
       </div>
+
+      {onIrAlCarro && (
+        <button type="button" className="boton boton--grande" onClick={onIrAlCarro}>
+          <IconoNavegar size={18} /> Llévame a mi carro
+        </button>
+      )}
     </div>
   );
 }

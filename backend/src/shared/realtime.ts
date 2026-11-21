@@ -36,8 +36,8 @@ export class NotificadorSSE {
   }
 
   /** v2.0: el agente tomó una decisión (para el registro en vivo de /simulacion). */
-  publicarDecisionAgente(): void {
-    this.enviar('agente', { actualizadoEn: new Date().toISOString() }, () => true);
+  publicarDecisionAgente(reasignaciones: { de: { idZona: number; puesto: number | null }; a: { idZona: number; puesto: number } | null }[] = []): void {
+    this.enviar('agente', { actualizadoEn: new Date().toISOString(), reasignaciones }, () => true);
   }
 
   /** v2.0: estado del tráfico simulado (encendido/apagado), para el iPad. */
@@ -48,6 +48,11 @@ export class NotificadorSSE {
   /** v2.0: un conductor empezó a navegar hacia su puesto (sincroniza el carro de /simulacion). */
   publicarNavegacion(datos: unknown): void {
     this.enviar('navegacion', datos, () => true);
+  }
+
+  /** v2.0: un carro intruso va en camino a un puesto retenido (llega en duracionMs). */
+  publicarIntruso(datos: unknown): void {
+    this.enviar('intruso', datos, () => true);
   }
 
   publicarRetencion(idSesion: string, datos: unknown): void {
