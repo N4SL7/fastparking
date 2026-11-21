@@ -21,11 +21,11 @@ const VELOCIDADES = [
 ];
 /** Conductores de FastParking en camino (puestos retenidos) con su ruta desde la rampa. */
 function conductoresDe(plano: ZonaEnPlano[]) {
-  const lista: { clave: string; ruta: ReturnType<typeof rutaHastaPuesto> }[] = [];
+  const lista: { clave: string; ruta: ReturnType<typeof rutaHastaPuesto>; centro: { x: number; y: number } }[] = [];
   for (const z of plano) {
     z.puestos
       .filter((p) => p.estado === 'mio')
-      .forEach((p, i) => lista.push({ clave: `${z.zona.idZona}-${i}`, ruta: rutaHastaPuesto(p, z.lado) }));
+      .forEach((p, i) => lista.push({ clave: `${z.zona.idZona}-${i}`, ruta: rutaHastaPuesto(p, z.lado), centro: { x: p.cx, y: p.cy } }));
   }
   return lista;
 }
@@ -233,7 +233,7 @@ export function Simulacion() {
                   {/* Un carro vinotinto por conductor de FastParking: lleva su propia key estable por zona para
                       que, al ser reasignado dentro de la zona, gire y continúe desde donde iba. */}
                   {conductoresDe(plano).map((c) => (
-                    <CarroConductor key={c.clave} ruta={c.ruta} faros={calidad.faros} />
+                    <CarroConductor key={c.clave} ruta={c.ruta} centro={c.centro} faros={calidad.faros} />
                   ))}
                 </group>
               );

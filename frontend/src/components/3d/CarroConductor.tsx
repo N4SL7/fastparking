@@ -10,20 +10,20 @@ const VELOCIDAD = 42; // misma velocidad que la navegación del celular (≈ 5 m
 
 /**
  * Carro VINOTINTO del conductor que usa FastParking (vista /simulacion).
- * Recorre su ruta desde la rampa y se detiene frente al puesto reservado ("en camino").
+ * Recorre su ruta desde la rampa y ENTRA al puesto reservado, donde queda esperando.
  * Si el agente lo reasigna, gira y sigue hacia el puesto nuevo desde donde iba: así se ve la conexión
  * entre el celular y la simulación.
  */
-export function CarroConductor({ ruta, faros }: { ruta: Punto[]; faros: boolean }) {
+export function CarroConductor({ ruta, centro, faros }: { ruta: Punto[]; centro: Punto; faros: boolean }) {
   const ref = useRef<Group>(null);
   const tramo = useRef<{ ruta: Punto[]; inicio: number; duracion: number } | null>(null);
   const yaw = useRef<number | null>(null);
 
   // Solo reacciona si cambia el DESTINO (no cada vez que llega una actualización de ocupación).
-  const claveRuta = ruta.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(';');
+  const claveRuta = [...ruta, centro].map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(';');
   useEffect(() => {
-    // Se detiene en la vía, justo frente al puesto (el último tramo es la entrada al puesto).
-    const frente = ruta.slice(0, -1);
+    // Ruta completa hasta el CENTRO del puesto: el carro entra y se estaciona.
+    const frente = [...ruta, centro];
     let camino = frente;
     if (ref.current && tramo.current) {
       // Reasignación: parte desde la posición actual del carro.

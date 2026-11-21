@@ -39,9 +39,14 @@ const ocupa = (p: Puesto) => p.estado === 'ocupado' || p.estado === 'mi-vehiculo
  * "4D": compara la ocupación anterior con la nueva. Los puestos que se ocupan reciben un carro que ENTRA por
  * la rampa y se estaciona; los que se liberan ven a su carro SALIR. La primera carga aparece ya estacionada.
  */
-function useCarros(plano: ZonaEnPlano[], animar: boolean): [CarroEnEscena[], (clave: string) => void] {
+function useCarros(
+  plano: ZonaEnPlano[],
+  animar: boolean,
+  claveIntruso: string | null,
+): [CarroEnEscena[], (clave: string) => void] {
   const [carros, setCarros] = useState<Map<string, CarroEnEscena>>(new Map());
   const primera = useRef(true);
+  const estadosPrevios = useRef(new Map<string, Puesto['estado']>());
 
   useEffect(() => {
     setCarros((previos) => {
@@ -54,12 +59,14 @@ function useCarros(plano: ZonaEnPlano[], animar: boolean): [CarroEnEscena[], (cl
           const clave = `${z.zona.idZona}-${p.numero}`;
           presentes.add(clave);
           const previo = siguiente.get(clave);
-          const propio = p.estado === 'mi-vehiculo';
+          // El conductor de FastParking que llegó a SU puesto (antes "mio") ya está ahí: no vuelve a entrar desde la rampa.
+          const llegoElConductor = estadosPrevios.current.get(clave) === 'mio' && clave !== claveIntruso;
+          const propio = p.estado === 'mi-vehiculo' || llegoElConductor || (previo?.propio ?? false);
           if (previo && previo.modo !== 'saliendo') {
             if (previo.propio !== propio) siguiente.set(clave, { ...previo, propio });
             continue;
           }
-          const anima = animar && !primera.current;
+          const anima = animar && !primera.current && !llegoElConductor;
           siguiente.set(clave, {
             clave,
             puesto: p,
@@ -81,8 +88,10 @@ function useCarros(plano: ZonaEnPlano[], animar: boolean): [CarroEnEscena[], (cl
         }
       }
       primera.current = false;
+      estadosPrevios.current = new Map(plano.flatMap((z) => z.puestos.map((p) => [`${z.zona.idZona}-${p.numero}`, p.estado] as const)));
       return siguiente;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plano, animar]);
 
   const retirar = (clave: string) =>
@@ -262,7 +271,7 @@ export function PisoSotano3D({
   animarCarros?: boolean;
   etiquetas?: boolean;
 }) {
-  const [carros, retirar] = useCarros(plano, animarCarros);
+  const [carros, retirar] = useCarros(plano, animarCarros, intruso ? `${intruso.idZona}-${intruso.numero}` : null);
   // Los carros intrusos quedan naranja mientras sigan en el puesto que le quitaron al conductor.
   const intrusos = useRef(new Set<string>());
   if (intruso) intrusos.current.add(`${intruso.idZona}-${intruso.numero}`);
