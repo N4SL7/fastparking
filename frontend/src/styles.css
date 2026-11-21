@@ -93,7 +93,8 @@ p {
 .contenedor {
   max-width: 430px;
   margin: 0 auto;
-  padding: 10px 16px 120px;
+  /* Espacio libre bajo el contenido para que la barra inferior nunca tape los botones */
+  padding: 10px 16px calc(150px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 14px;

@@ -166,9 +166,15 @@ export function Simulacion() {
     () =>
       pisos.map((p) => {
         // En la simulación, los puestos retenidos por conductores de FastParking brillan en teal ("en camino").
+        // Los carros de conductores que ya llegaron con la app se dibujan vinotinto ("mi-vehiculo").
         const plano: ZonaEnPlano[] = construirPlano(p.zonas).map((z) => ({
           ...z,
-          puestos: z.puestos.map((pu) => (pu.estado === 'retenido' ? { ...pu, estado: 'mio' as const } : pu)),
+          puestos: z.puestos.map((pu) => {
+            if (pu.estado === 'retenido') return { ...pu, estado: 'mio' as const };
+            const real = z.zona.puestos?.find((x) => x.numero === pu.numero);
+            if (pu.estado === 'ocupado' && real?.conFastParking) return { ...pu, estado: 'mi-vehiculo' as const };
+            return pu;
+          }),
         }));
         return { piso: p, plano };
       }),

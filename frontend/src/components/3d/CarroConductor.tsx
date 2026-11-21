@@ -6,7 +6,7 @@ import { ModeloCarro } from './Carro3D';
 import { COLOR, aX, aZ } from './escena';
 import { girarHacia, yawDeRumbo } from './Ruta3D';
 
-const VELOCIDAD = 42; // misma velocidad que la navegación del celular (≈ 5 m/s)
+const VELOCIDAD = 110; // simulación acelerada: llega al puesto en pocos segundos
 
 /**
  * Carro VINOTINTO del conductor que usa FastParking (vista /simulacion).

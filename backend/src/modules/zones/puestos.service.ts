@@ -13,17 +13,25 @@ export interface PuestoCandidato {
 }
 
 /** Puestos de todas las zonas con su estado, para que la PWA dibuje el plano real (RF-10). */
-export async function estadosDePuestos(db: Db): Promise<Map<number, { numero: number; estado: EstadoPuesto }[]>> {
-  const { rows } = await db.query<{ id_zona: number; numero: number; ocupado: boolean; retenido: boolean }>(
+export async function estadosDePuestos(
+  db: Db,
+): Promise<Map<number, { numero: number; estado: EstadoPuesto; conFastParking?: boolean }[]>> {
+  const { rows } = await db.query<{ id_zona: number; numero: number; ocupado: boolean; retenido: boolean; con_app: boolean }>(
     `SELECT p.id_zona, p.numero, p.ocupado,
             EXISTS (SELECT 1 FROM retencion r WHERE r.id_zona = p.id_zona AND r.puesto = p.numero
-                    AND r.estado = 'VIGENTE' AND r.vence_en > now()) AS retenido
+                    AND r.estado = 'VIGENTE' AND r.vence_en > now()) AS retenido,
+            EXISTS (SELECT 1 FROM ubicacion_vehiculo u WHERE u.id_zona = p.id_zona AND u.puesto = p.numero) AS con_app
      FROM puesto p ORDER BY p.id_zona, p.numero`,
   );
-  const mapa = new Map<number, { numero: number; estado: EstadoPuesto }[]>();
+  const mapa = new Map<number, { numero: number; estado: EstadoPuesto; conFastParking?: boolean }[]>();
   for (const f of rows) {
     if (!mapa.has(f.id_zona)) mapa.set(f.id_zona, []);
-    mapa.get(f.id_zona)!.push({ numero: f.numero, estado: f.ocupado ? 'OCUPADO' : f.retenido ? 'RETENIDO' : 'LIBRE' });
+    // conFastParking: el vehículo estacionado es de un conductor que llegó con la app (se dibuja vinotinto en /simulacion).
+    mapa.get(f.id_zona)!.push({
+      numero: f.numero,
+      estado: f.ocupado ? 'OCUPADO' : f.retenido ? 'RETENIDO' : 'LIBRE',
+      ...(f.ocupado && f.con_app ? { conFastParking: true } : {}),
+    });
   }
   return mapa;
 }

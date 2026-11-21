@@ -170,6 +170,11 @@ export function MapaSotano({
   const foco: [number, number] = puestoFoco ? [aX(puestoFoco.cx) * 0.4, aZ(puestoFoco.cy)] : [0, aZ(260)];
 
   const hoja = useRef<HTMLDivElement>(null);
+  const acciones = useRef<HTMLDivElement>(null);
+  // Al llegar, se desplaza hasta "Confirmar que estacioné aquí" para que quede a la vista (sobre la barra inferior).
+  useEffect(() => {
+    if (llego) acciones.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [llego]);
   useEffect(() => {
     if (seleccion) hoja.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [seleccion]);
@@ -293,7 +298,7 @@ export function MapaSotano({
         </div>
       )}
 
-      <div className="mapa__acciones">
+      <div className="mapa__acciones" ref={acciones}>
         {destino && !navegando && (
           <button type="button" className="boton boton--grande" onClick={navegar}>
             <IconoNavegar size={18} /> Ir a {destino.zona.codigo} · P{dos(destino.puesto.numero)}

@@ -17,7 +17,7 @@ export interface Zona {
   estado: EstadoZona;
   actualizadoEn: string;
   /** v2.0 (D-23): estado real de cada puesto. */
-  puestos?: { numero: number; estado: 'LIBRE' | 'OCUPADO' | 'RETENIDO' }[];
+  puestos?: { numero: number; estado: 'LIBRE' | 'OCUPADO' | 'RETENIDO'; conFastParking?: boolean }[];
 }
 
 export interface Piso {
