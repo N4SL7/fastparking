@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { api } from '../api';
 import { detectarCalidad } from '../lib/calidad';
 import { construirPlano, longitud, rutaHastaPuesto, siguienteInstruccion, type Puesto, type ZonaEnPlano } from '../lib/plano';
 import type { Piso, Retencion, Ubicacion, Zona } from '../types';
@@ -8,7 +9,8 @@ import { Ruta3D } from './3d/Ruta3D';
 import { CamaraGeneral, CamaraSeguimiento, Lienzo3D } from './3d/Sotano3D';
 import { IconoNavegar } from './iconos';
 
-const ALTO_ESCENA = 540;
+// Alto del mapa adaptado a la pantalla: en celulares pequeños deja ver el HUD y los botones sobre la barra inferior.
+const ALTO_ESCENA = 'clamp(330px, calc(100dvh - 300px), 540px)';
 const VELOCIDAD = 42; // unidades de plano por segundo (≈ 5 m/s: velocidad de parqueadero)
 const dos = (n: number) => String(n).padStart(2, '0');
 
@@ -117,6 +119,8 @@ export function MapaSotano({
     const inicio = performance.now();
     let ultimoRender = 0;
     avance.current = 0;
+    // Avisa al servidor para que el carro vinotinto de /simulacion avance al mismo ritmo (RF-20).
+    if (retencion) api.navegar(retencion.idRetencion, Math.round(duracion)).catch(() => undefined);
     setProgreso(0);
     const paso = (ahora: number) => {
       const t = Math.min(1, (ahora - inicio) / duracion);
@@ -215,7 +219,7 @@ export function MapaSotano({
       </div>
 
       <div className={`mapa-escena ${navegando ? 'mapa-escena--navegando' : ''}`} ref={escena} style={{ height: ALTO_ESCENA }}>
-        <Lienzo3D calidad={calidad} alto={ALTO_ESCENA}>
+        <Lienzo3D calidad={calidad} alto="100%">
           <PisoSotano3D
             plano={plano}
             codigoPiso={piso.codigo}
@@ -224,6 +228,7 @@ export function MapaSotano({
             intruso={intruso}
             idZonaDestacada={retencion?.idZona ?? seleccion?.zona.idZona ?? null}
             onTocarPuesto={tocarPuesto}
+            etiquetas={!navegando}
           />
           {ruta && <Ruta3D ruta={ruta} avance={avance} mostrarFlecha={navegando} />}
           {navegando ? (
@@ -251,6 +256,16 @@ export function MapaSotano({
                 </small>
               </span>
             )}
+          </div>
+        )}
+        {llego && (
+          <div className="mapa-escena__acciones">
+            <button type="button" className="boton boton--grande" disabled={ocupado} onClick={() => onLlegar(destino!.puesto.numero)}>
+              Confirmar que estacioné aquí
+            </button>
+            <button type="button" className="boton boton--secundario boton--chico" onClick={navegar}>
+              Repetir ruta
+            </button>
           </div>
         )}
         {intruso && (
@@ -303,16 +318,6 @@ export function MapaSotano({
           <button type="button" className="boton boton--grande" onClick={navegar}>
             <IconoNavegar size={18} /> Ir a {destino.zona.codigo} · P{dos(destino.puesto.numero)}
           </button>
-        )}
-        {llego && (
-          <>
-            <button type="button" className="boton boton--grande" disabled={ocupado} onClick={() => onLlegar(destino!.puesto.numero)}>
-              Confirmar que estacioné aquí
-            </button>
-            <button type="button" className="boton boton--secundario" onClick={navegar}>
-              Repetir ruta
-            </button>
-          </>
         )}
       </div>
 

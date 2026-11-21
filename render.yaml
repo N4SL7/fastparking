@@ -29,7 +29,7 @@ services:
       - key: LLM_MODEL
         value: gemini-3.8-flash
       - key: LLM_TIMEOUT_MS
-        value: "8000"
+        value: "20000"
       # v2.0 — PIN de los controles de /simulacion (D-24)
       - key: DEMO_PIN
         sync: false

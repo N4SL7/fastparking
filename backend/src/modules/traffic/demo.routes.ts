@@ -7,6 +7,7 @@ import { AppError, asyncHandler } from '../../shared/errors.js';
 import { ultimasDecisiones } from '../agent/agent.repository.js';
 import { obtenerProveedorLLM, ultimoErrorLLM, verificacionLLM } from '../agent/llm.provider.js';
 import { cambiarTrafico, estadoTrafico, lanzarIntruso } from './traffic.service.js';
+import { navegacionesActivas } from '../retentions/navigation.service.js';
 
 export const demoRouter = Router();
 
@@ -31,6 +32,7 @@ demoRouter.get(
       agente: { motor: llm ? 'LLM' : 'REGLAS', modelo: llm?.modelo ?? null, ultimoError: ultimoErrorLLM, verificacion: verificacionLLM },
       controlesHabilitados: Boolean(config.demoPin),
       decisiones: await ultimasDecisiones(pool),
+      navegaciones: navegacionesActivas(),
     });
   }),
 );

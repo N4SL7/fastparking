@@ -53,6 +53,8 @@ export const api = {
   cancelar: (idRetencion: string) => pedir<Retencion>(`/api/retentions/${idRetencion}/cancel`, { method: 'POST' }),
   llegar: (idRetencion: string, puesto?: number) =>
     pedir<Retencion>(`/api/retentions/${idRetencion}/arrive`, { method: 'POST', body: JSON.stringify({ puesto }) }),
+  navegar: (idRetencion: string, duracionMs: number) =>
+    pedir<void>(`/api/retentions/${idRetencion}/navigation`, { method: 'POST', body: JSON.stringify({ duracionMs }) }),
   asistente: (pregunta: string, historial: { rol: 'usuario' | 'asistente'; texto: string }[]) =>
     pedir<{ respuesta: string; motor: 'LLM' | 'REGLAS'; herramientas: string[] }>('/api/asistente', {
       method: 'POST',

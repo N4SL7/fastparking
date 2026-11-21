@@ -3,8 +3,7 @@ import { useThree } from '@react-three/fiber';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { PisoSotano3D } from '../components/3d/PisoSotano3D';
-import { Ruta3D } from '../components/3d/Ruta3D';
-import { CarroConductor } from '../components/3d/CarroConductor';
+import { CarroConductor, type NavegacionSincronizada } from '../components/3d/CarroConductor';
 import { Lienzo3D } from '../components/3d/Sotano3D';
 import { detectarCalidad } from '../lib/calidad';
 import { construirPlano, rutaHastaPuesto, type ZonaEnPlano } from '../lib/plano';
@@ -12,7 +11,6 @@ import { qrComoPath } from '../lib/qr';
 import type { Disponibilidad, EstadoDemo } from '../types';
 import { pedirDemo } from './demoApi';
 
-const CERO = { current: 0 };
 const SEPARACION = 46; // distancia entre pisos en la vista general (unidades 3D)
 const VELOCIDADES = [
   { texto: '1×', ms: 6000 },
@@ -21,11 +19,13 @@ const VELOCIDADES = [
 ];
 /** Conductores de FastParking en camino (puestos retenidos) con su ruta desde la rampa. */
 function conductoresDe(plano: ZonaEnPlano[]) {
-  const lista: { clave: string; ruta: ReturnType<typeof rutaHastaPuesto>; centro: { x: number; y: number } }[] = [];
+  const lista: { clave: string; puesto: string; ruta: ReturnType<typeof rutaHastaPuesto>; centro: { x: number; y: number } }[] = [];
   for (const z of plano) {
     z.puestos
       .filter((p) => p.estado === 'mio')
-      .forEach((p, i) => lista.push({ clave: `${z.zona.idZona}-${i}`, ruta: rutaHastaPuesto(p, z.lado), centro: { x: p.cx, y: p.cy } }));
+      .forEach((p, i) =>
+        lista.push({ clave: `${z.zona.idZona}-${i}`, puesto: `${z.zona.idZona}-${p.numero}`, ruta: rutaHastaPuesto(p, z.lado), centro: { x: p.cx, y: p.cy } }),
+      );
   }
   return lista;
 }
@@ -67,6 +67,17 @@ export function Simulacion() {
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: 'ok' | 'error' } | null>(null);
   const [intrusos, setIntrusos] = useState<Map<number, number>>(new Map()); // idZona → puesto que parpadea
   const previos = useRef<Map<string, string>>(new Map());
+  // Navegaciones del celular sincronizadas por el servidor: clave "idZona-puesto" → inicio local y duración.
+  const [navs, setNavs] = useState<Map<string, NavegacionSincronizada>>(new Map());
+  const registrarNav = useCallback((n: { idZona: number; puesto: number; duracionMs: number; transcurridoMs: number }) => {
+    setNavs((m) => {
+      const k = `${n.idZona}-${n.puesto}`;
+      const inicioLocal = performance.now() - n.transcurridoMs;
+      const previo = m.get(k);
+      if (previo && Math.abs(previo.inicioLocal - inicioLocal) < 1500) return m; // misma navegación
+      return new Map(m).set(k, { inicioLocal, duracionMs: n.duracionMs });
+    });
+  }, []);
 
   const cargarZonas = useCallback(async () => {
     try {
@@ -92,11 +103,13 @@ export function Simulacion() {
 
   const cargarDemo = useCallback(async () => {
     try {
-      setDemo(await pedirDemo<EstadoDemo>('/api/demo/estado'));
+      const e = await pedirDemo<EstadoDemo>('/api/demo/estado');
+      setDemo(e);
+      e.navegaciones?.forEach(registrarNav);
     } catch {
       /* sin conexión: se reintenta */
     }
-  }, []);
+  }, [registrarNav]);
 
   useEffect(() => {
     cargarZonas();
@@ -109,11 +122,12 @@ export function Simulacion() {
     fuente.addEventListener('zonas', () => cargarZonas());
     fuente.addEventListener('agente', () => cargarDemo());
     fuente.addEventListener('trafico', () => cargarDemo());
+    fuente.addEventListener('navegacion', (ev) => registrarNav(JSON.parse((ev as MessageEvent).data)));
     return () => {
       clearInterval(sondeo);
       fuente.close();
     };
-  }, [cargarZonas, cargarDemo]);
+  }, [cargarZonas, cargarDemo, registrarNav]);
 
   useEffect(() => {
     if (pin) desbloquear(pin, true);
@@ -231,15 +245,10 @@ export function Simulacion() {
                     })()}
                     etiquetas={vista !== 'general' || calidad.nivel === 'alto'}
                   />
-                  {plano.flatMap((z) =>
-                    z.puestos
-                      .filter((p) => p.estado === 'mio')
-                      .map((p) => <Ruta3D key={`${z.zona.idZona}-${p.numero}`} ruta={rutaHastaPuesto(p, z.lado)} avance={CERO} mostrarFlecha={false} />),
-                  )}
                   {/* Un carro vinotinto por conductor de FastParking: lleva su propia key estable por zona para
                       que, al ser reasignado dentro de la zona, gire y continúe desde donde iba. */}
                   {conductoresDe(plano).map((c) => (
-                    <CarroConductor key={c.clave} ruta={c.ruta} centro={c.centro} faros={calidad.faros} />
+                    <CarroConductor key={c.clave} ruta={c.ruta} centro={c.centro} nav={navs.get(c.puesto) ?? null} faros={calidad.faros} />
                   ))}
                 </group>
               );

@@ -287,7 +287,8 @@ export default function App() {
         {pestana === 'billetera' && <Billetera ahora={ahora} onAviso={avisar} onNuevoIngreso={sesion.nuevoIngreso} />}
       </main>
 
-      <Asistente />
+      {/* El chat flotante no se muestra en el Mapa para no tapar la escena ni los botones */}
+      {pestana !== 'mapa' && <Asistente />}
 
       <nav className="barra-nav" aria-label="Secciones">
         {PESTANAS.map((p) => (

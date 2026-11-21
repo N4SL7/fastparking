@@ -9,12 +9,27 @@ import {
   obtenerRetencionActual,
   solicitarRetencion,
 } from './retentions.service.js';
+import { iniciarNavegacion } from './navigation.service.js';
+import { AppError } from '../../shared/errors.js';
 
 export const retentionsRouter = Router();
 retentionsRouter.use(requerirSesion);
 
 const SolicitarSchema = z.object({ idZona: z.number().int().positive(), puesto: z.number().int().min(1).max(99).optional() });
 const IdSchema = z.string().uuid();
+const NavegacionSchema = z.object({ duracionMs: z.number().int().min(1_000).max(10 * 60_000) });
+
+/** POST /api/retentions/:id/navigation — el conductor empezó a seguir la flecha (sincroniza /simulacion). */
+retentionsRouter.post(
+  '/:id/navigation',
+  asyncHandler(async (req, res) => {
+    const { duracionMs } = NavegacionSchema.parse(req.body);
+    const r = await obtenerRetencion(res.locals.idSesion, IdSchema.parse(req.params.id));
+    if (r.estado !== 'VIGENTE' || !r.puesto) throw new AppError(409, 'RETENCION_NO_VIGENTE', 'La retención ya no está vigente.');
+    iniciarNavegacion(r.idZona, r.puesto, duracionMs);
+    res.status(204).end();
+  }),
+);
 
 /** POST /api/retentions — RF-04 */
 retentionsRouter.post(

@@ -45,6 +45,11 @@ export class NotificadorSSE {
     this.enviar('trafico', datos, () => true);
   }
 
+  /** v2.0: un conductor empezó a navegar hacia su puesto (sincroniza el carro de /simulacion). */
+  publicarNavegacion(datos: unknown): void {
+    this.enviar('navegacion', datos, () => true);
+  }
+
   publicarRetencion(idSesion: string, datos: unknown): void {
     this.enviar('retencion', datos, (s) => s.idSesion === idSesion);
   }

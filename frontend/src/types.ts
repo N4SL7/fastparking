@@ -101,6 +101,7 @@ export interface EstadoDemo {
   agente: { motor: 'LLM' | 'REGLAS'; modelo: string | null };
   controlesHabilitados: boolean;
   decisiones: DecisionAgente[];
+  navegaciones?: { idZona: number; puesto: number; duracionMs: number; transcurridoMs: number }[];
 }
 
 export type MetodoPago = 'TARJETA' | 'NEQUI' | 'PSE';
