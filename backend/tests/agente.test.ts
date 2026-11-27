@@ -267,3 +267,52 @@ describe('CP-15 asistente de ayuda del conductor (RF-21)', () => {
     expect((await preguntar(sesion, '')).status).toBe(400);
   });
 });
+
+describe('CP-16 intruso preparado y reinicio de la demo (v2.1)', () => {
+  const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  // El estado del intruso vive en memoria del servidor: cada prueba parte de una demo reiniciada.
+  beforeEach(async () => {
+    await request(app).post('/api/demo/reiniciar').set('x-demo-pin', PIN);
+  });
+
+  it('el intruso preparado espera y arranca solo cuando un conductor reserva; luego el agente reasigna', async () => {
+    fijarProveedorLLM(null);
+    const prep = await request(app).post('/api/demo/intruso/preparar').set('x-demo-pin', PIN);
+    expect(prep.status).toBe(200);
+    expect(prep.body.fase).toBe('ESPERANDO');
+    const estado = await request(app).get('/api/demo/estado');
+    expect(estado.body.intruso.fase).toBe('ESPERANDO');
+
+    const sesion = await crearSesion();
+    const ret = await retenerPuesto(sesion, 'S1-C');
+    expect(ret.status).toBe(201);
+    await esperar(300);
+
+    const anterior = await request(app).get(`/api/retentions/${ret.body.idRetencion}`).set('x-session-id', sesion);
+    expect(anterior.body).toMatchObject({ estado: 'REASIGNADA', motivoCierre: 'PUESTO_OCUPADO' });
+    const [d] = await decisiones();
+    expect(d).toMatchObject({ motor: 'REGLAS', motivo: 'PUESTO_OCUPADO' });
+  });
+
+  it('exige PIN y se puede cancelar mientras espera', async () => {
+    expect((await request(app).post('/api/demo/intruso/preparar')).status).toBe(401);
+    await request(app).post('/api/demo/intruso/preparar').set('x-demo-pin', PIN);
+    const c = await request(app).post('/api/demo/intruso/cancelar').set('x-demo-pin', PIN);
+    expect(c.body.fase).toBe('INACTIVO');
+    const sesion = await crearSesion();
+    const ret = await retenerPuesto(sesion, 'S1-C');
+    await esperar(200);
+    const r = await request(app).get(`/api/retentions/${ret.body.idRetencion}`).set('x-session-id', sesion);
+    expect(r.body.estado).toBe('VIGENTE');
+  });
+
+  it('reiniciar la demo cancela las retenciones vigentes y retira los carros de la app', async () => {
+    const sesion = await crearSesion();
+    const ret = await retenerPuesto(sesion, 'S1-C');
+    const res = await request(app).post('/api/demo/reiniciar').set('x-demo-pin', PIN);
+    expect(res.status).toBe(200);
+    expect(res.body.retencionesCanceladas).toBeGreaterThanOrEqual(1);
+    const r = await request(app).get(`/api/retentions/${ret.body.idRetencion}`).set('x-session-id', sesion);
+    expect(r.body).toMatchObject({ estado: 'CANCELADA', motivoCierre: 'REINICIO_DEMO' });
+  });
+});

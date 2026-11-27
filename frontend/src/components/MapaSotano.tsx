@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { detectarCalidad } from '../lib/calidad';
-import { construirPlano, longitud, rutaHastaPuesto, siguienteInstruccion, type Puesto, type ZonaEnPlano } from '../lib/plano';
+import { construirPlano, longitud, puntoEn, rutaDesde, rutaHastaPuesto, siguienteInstruccion, type Punto, type Puesto, type ZonaEnPlano } from '../lib/plano';
 import type { Piso, Retencion, Ubicacion, Zona } from '../types';
 import { aX, aZ } from './3d/escena';
 import { PisoSotano3D, type IntrusoEnCamino } from './3d/PisoSotano3D';
@@ -11,7 +11,12 @@ import { IconoNavegar } from './iconos';
 
 // Alto del mapa adaptado a la pantalla: en celulares pequeños deja ver el HUD y los botones sobre la barra inferior.
 const ALTO_ESCENA = 'clamp(330px, calc(100dvh - 300px), 540px)';
+const ALTO_COMPACTO = 'clamp(240px, 38dvh, 340px)';
 const VELOCIDAD = 42; // unidades de plano por segundo (≈ 5 m/s: velocidad de parqueadero)
+// v2.1: la navegación dura al menos 16 s (antes 12 s): se lee mejor y, en la demo, el carro intruso
+// preparado (sale 1,5 s después de la reserva y tarda 9 s) alcanza a llegar primero.
+const DURACION_MINIMA_MS = 16_000;
+const DURACION_MINIMA_DESVIO_MS = 6_000;
 const dos = (n: number) => String(n).padStart(2, '0');
 
 interface Seleccion {
@@ -33,6 +38,7 @@ export function MapaSotano({
   onLlegar,
   ocupado,
   soloLectura = false,
+  compacto = false,
   intrusosEnCamino,
 }: {
   pisos: Piso[];
@@ -44,6 +50,8 @@ export function MapaSotano({
   onLlegar: (puesto: number) => void;
   ocupado: boolean;
   soloLectura?: boolean;
+  /** v2.1: versión reducida (sin leyenda ni notas) para la pantalla "Mi vehículo". */
+  compacto?: boolean;
   intrusosEnCamino?: IntrusoEnCamino[];
 }) {
   const pisoDe = (idZona?: number) => pisos.find((p) => p.zonas.some((z) => z.idZona === idZona));
@@ -59,23 +67,38 @@ export function MapaSotano({
   const calidad = useMemo(detectarCalidad, []);
   const previa = useRef<Retencion | null>(null);
   const reNavegar = useRef(false);
+  // v2.1: ruta que se está siguiendo y si hay navegación en curso (se leen al recalcular tras una reasignación).
+  const rutaAnterior = useRef<Punto[] | null>(null);
+  const navegandoRef = useRef(false);
+  navegandoRef.current = progreso !== null;
+
+  /** ¿La retención actual nació de reasignar la anterior mientras el conductor iba navegando? */
+  const esDesvio = (r: Retencion | null) =>
+    !!r && !!previa.current && r.idRetencionOrigen === previa.current.idRetencion && navegandoRef.current && pisoDe(r.idZona)?.idPiso === idPiso;
 
   useEffect(() => {
     const anterior = previa.current;
+    const desvio = esDesvio(retencion);
     previa.current = retencion;
     const p = pisoDe(retencion?.idZona);
     if (p) setIdPiso(p.idPiso);
-    // RF-19: si la retención nació de una reasignación, el puesto anterior parpadea en rojo (carro intruso)
-    // y, si el conductor iba navegando, la flecha recalcula sola la ruta hacia el nuevo puesto.
+    // RF-19: si la retención nació de una reasignación, el puesto anterior parpadea en rojo (carro intruso).
     if (retencion && anterior && retencion.idRetencionOrigen === anterior.idRetencion && anterior.puesto) {
       setIntruso({ idZona: anterior.idZona, numero: anterior.puesto });
       setTimeout(() => setIntruso(null), 5000);
-      reNavegar.current = progreso !== null;
+    }
+    setSeleccion(null);
+    if (desvio) {
+      // v2.1: la flecha NO vuelve a la entrada ni la cámara cambia de modo: se detiene un instante donde iba
+      // (el conductor lee el aviso) y continúa hacia el puesto nuevo desde ese mismo punto.
+      cancelAnimationFrame(raf.current!);
+      setProgreso(0);
+      reNavegar.current = true;
+      return;
     }
     cancelAnimationFrame(raf.current!);
     avance.current = 0;
     setProgreso(null);
-    setSeleccion(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retencion?.idRetencion]);
 
@@ -91,6 +114,13 @@ export function MapaSotano({
   );
 
   const destino = useMemo(() => {
+    // v2.1: el destino es el puesto de la retención aunque los datos ya lo muestren ocupado (el carro intruso
+    // llegó antes de que llegue la reasignación). Así la navegación no se corta ni la cámara cambia de modo.
+    if (retencion?.puesto) {
+      const z = plano.find((x) => x.zona.idZona === retencion.idZona);
+      const p = z?.puestos[retencion.puesto - 1];
+      if (z && p) return { puesto: p, lado: z.lado, zona: z.zona, esMiCarro: false };
+    }
     for (const z of plano) {
       const p = z.puestos.find((x) => x.estado === 'mio');
       if (p) return { puesto: p, lado: z.lado, zona: z.zona, esMiCarro: false };
@@ -101,33 +131,43 @@ export function MapaSotano({
       if (p) return { puesto: p, lado: z.lado, zona: z.zona, esMiCarro: true };
     }
     return null;
-  }, [plano]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plano, retencion?.idZona, retencion?.puesto]);
   // La ruta solo cambia si cambia el puesto destino (no con cada actualización de ocupación).
   const claveDestino = destino ? `${destino.zona.idZona}-${destino.puesto.numero}` : '';
-  const ruta = useMemo(
-    () => (destino ? rutaHastaPuesto(destino.puesto, destino.lado) : null),
+  const ruta = useMemo(() => {
+    if (!destino) return null;
+    // v2.1: si es un desvío (reasignación en plena navegación), la ruta nueva sale desde donde va la flecha.
+    if (esDesvio(retencion) && rutaAnterior.current) {
+      const aqui = puntoEn(rutaAnterior.current, avance.current);
+      avance.current = 0; // la nueva ruta empieza exactamente en ese punto: no hay salto
+      return rutaDesde(aqui, destino.puesto, destino.lado);
+    }
+    return rutaHastaPuesto(destino.puesto, destino.lado);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [claveDestino],
-  );
+  }, [claveDestino]);
+  if (ruta) rutaAnterior.current = ruta;
 
   useEffect(() => {
     if (reNavegar.current && destino) {
       reNavegar.current = false;
-      setTimeout(navegar, 900);
+      // Pausa corta para leer "Otro vehículo ocupó tu puesto…" antes de seguir.
+      const t = setTimeout(() => navegar(true), 1200);
+      return () => clearTimeout(t);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destino?.zona.idZona, destino?.puesto.numero]);
 
-  function navegar() {
+  function navegar(desvio = false) {
     if (!destino || !ruta) return;
     cancelAnimationFrame(raf.current!);
-    const duracion = Math.max(12000, (longitud(ruta) / VELOCIDAD) * 1000);
-    escena.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const duracion = Math.max(desvio ? DURACION_MINIMA_DESVIO_MS : DURACION_MINIMA_MS, (longitud(ruta) / VELOCIDAD) * 1000);
+    if (!desvio) escena.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     const inicio = performance.now();
     let ultimoRender = 0;
     avance.current = 0;
-    // Avisa al servidor para que el carro vinotinto de /simulacion avance al mismo ritmo (RF-20).
-    if (retencion) api.navegar(retencion.idRetencion, Math.round(duracion)).catch(() => undefined);
+    // Avisa al servidor para que el carro vinotinto de /simulacion avance al mismo ritmo y desde el mismo punto (RF-20).
+    if (retencion) api.navegar(retencion.idRetencion, Math.round(duracion), desvio ? ruta[0] : undefined).catch(() => undefined);
     setProgreso(0);
     const paso = (ahora: number) => {
       const t = Math.min(1, (ahora - inicio) / duracion);
@@ -200,7 +240,7 @@ export function MapaSotano({
     <section className="mapa" aria-labelledby="titulo-mapa">
       <div className="mapa__cabecera">
         <div>
-          <p className="etiqueta">Plano ilustrativo · simulación</p>
+          <p className="etiqueta">Plano ilustrativo</p>
           <h2 id="titulo-mapa" className="titulo-seccion">
             {piso.nombre}
           </h2>
@@ -225,7 +265,7 @@ export function MapaSotano({
         </div>
       </div>
 
-      <div className={`mapa-escena ${navegando ? 'mapa-escena--navegando' : ''}`} ref={escena} style={{ height: ALTO_ESCENA }}>
+      <div className={`mapa-escena ${navegando ? 'mapa-escena--navegando' : ''}`} ref={escena} style={{ height: compacto ? ALTO_COMPACTO : ALTO_ESCENA }}>
         <Lienzo3D calidad={calidad} alto="100%">
           <PisoSotano3D
             plano={plano}
@@ -274,7 +314,7 @@ export function MapaSotano({
                 Confirmar que estacioné aquí
               </button>
             )}
-            <button type="button" className="boton boton--secundario boton--chico" onClick={navegar}>
+            <button type="button" className="boton boton--secundario boton--chico" onClick={() => navegar()}>
               Repetir ruta
             </button>
           </div>
@@ -284,7 +324,7 @@ export function MapaSotano({
             Otro vehículo ocupó tu puesto · el agente te asignó uno nuevo
           </p>
         )}
-        {!navegando && !soloLectura && !retencion && !seleccion && (
+        {!navegando && !soloLectura && !compacto && !retencion && !seleccion && (
           <p className="mapa__pista">Toca un puesto libre para reservarlo · arrastra, pellizca y gira con dos dedos</p>
         )}
       </div>
@@ -326,13 +366,15 @@ export function MapaSotano({
 
       <div className="mapa__acciones" ref={acciones}>
         {destino && !navegando && (
-          <button type="button" className="boton boton--grande" onClick={navegar}>
+          <button type="button" className="boton boton--grande" onClick={() => navegar()}>
             <IconoNavegar size={18} />{' '}
-            {destino.esMiCarro ? `Llévame a mi carro (${destino.zona.codigo} · P${dos(destino.puesto.numero)})` : `Ir a ${destino.zona.codigo} · P${dos(destino.puesto.numero)}`}
+            {destino.esMiCarro ? 'Llévame a mi carro' : `Ir a ${destino.zona.codigo} · P${dos(destino.puesto.numero)}`}
           </button>
         )}
       </div>
 
+      {!compacto && (
+        <>
       <ul className="leyenda" aria-label="Convenciones del plano">
         <li>
           <span className="leyenda__muestra leyenda__muestra--libre" /> Libre
@@ -347,10 +389,9 @@ export function MapaSotano({
           <span className="leyenda__muestra leyenda__muestra--mio" /> Tu puesto
         </li>
       </ul>
-      <p className="nota">
-        Plano ilustrativo de referencia: no es el plano oficial del centro comercial ni muestra tu posición en vivo. La ruta y
-        la flecha son una simulación.
-      </p>
+      <p className="nota">Plano y ruta ilustrativos: no es el plano oficial ni muestra tu posición en vivo.</p>
+        </>
+      )}
     </section>
   );
 }

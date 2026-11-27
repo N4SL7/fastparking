@@ -11,6 +11,7 @@ interface Navegacion {
   puesto: number;
   inicio: number;
   duracionMs: number;
+  desde?: { x: number; y: number };
 }
 
 const navegaciones = new Map<string, Navegacion>();
@@ -21,11 +22,16 @@ function limpiar() {
   for (const [k, n] of navegaciones) if (ahora - n.inicio > n.duracionMs + 10 * 60_000) navegaciones.delete(k);
 }
 
-export function iniciarNavegacion(idZona: number, puesto: number, duracionMs: number): void {
+export function iniciarNavegacion(idZona: number, puesto: number, duracionMs: number, desde?: { x: number; y: number }): void {
   limpiar();
-  const n = { idZona, puesto, inicio: Date.now(), duracionMs };
+  const n = { idZona, puesto, inicio: Date.now(), duracionMs, desde };
   navegaciones.set(clave(idZona, puesto), n);
-  notificador.publicarNavegacion({ idZona, puesto, duracionMs, transcurridoMs: 0 });
+  notificador.publicarNavegacion({ idZona, puesto, duracionMs, transcurridoMs: 0, desde });
+}
+
+/** v2.1: "Reiniciar demo" olvida las navegaciones en curso. */
+export function limpiarNavegaciones(): void {
+  navegaciones.clear();
 }
 
 /** Navegaciones en curso con el tiempo ya transcurrido (para quien abre /simulacion a mitad de camino). */
@@ -37,5 +43,6 @@ export function navegacionesActivas() {
     puesto: n.puesto,
     duracionMs: n.duracionMs,
     transcurridoMs: ahora - n.inicio,
+    desde: n.desde,
   }));
 }

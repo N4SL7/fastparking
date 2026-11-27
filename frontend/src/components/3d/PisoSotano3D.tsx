@@ -13,6 +13,7 @@ import {
   aX,
   aZ,
   colorCarro,
+  PUNTO_ESPERA_INTRUSO,
   trayectoEntrada,
   trayectoIntruso,
   trayectoSalida,
@@ -272,6 +273,7 @@ export function PisoSotano3D({
   animarCarros = true,
   etiquetas = true,
   intrusosEnCamino,
+  intrusoEsperando = false,
 }: {
   plano: ZonaEnPlano[];
   codigoPiso: string;
@@ -284,6 +286,8 @@ export function PisoSotano3D({
   etiquetas?: boolean;
   /** RF-19: carros intrusos que vienen en camino (llegan cuando el servidor ocupa el puesto). */
   intrusosEnCamino?: IntrusoEnCamino[];
+  /** v2.1: el carro intruso está "preparado": espera detenido junto a la puerta trasera. */
+  intrusoEsperando?: boolean;
 }) {
   const clavesEnCamino = useMemo(
     () => new Set((intrusosEnCamino ?? []).map((i) => `${i.idZona}-${i.numero}`)),
@@ -359,6 +363,11 @@ export function PisoSotano3D({
           onTocar={onTocarPuesto}
         />
       ))}
+      {intrusoEsperando && (
+        <group position={[aX(PUNTO_ESPERA_INTRUSO.x), 0, aZ(PUNTO_ESPERA_INTRUSO.y)]} rotation-y={PUNTO_ESPERA_INTRUSO.yaw}>
+          <ModeloCarro color={COLOR.carroIntruso} faros={calidad.faros} resaltado={COLOR.carroIntruso} />
+        </group>
+      )}
       {(intrusosEnCamino ?? []).map((i) => {
         const z = plano.find((x) => x.zona.idZona === i.idZona);
         const p = z?.puestos[i.numero - 1];

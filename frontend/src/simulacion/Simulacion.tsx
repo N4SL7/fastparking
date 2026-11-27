@@ -8,7 +8,7 @@ import { Lienzo3D } from '../components/3d/Sotano3D';
 import { detectarCalidad } from '../lib/calidad';
 import { construirPlano, rutaHastaPuesto, type ZonaEnPlano } from '../lib/plano';
 import { qrComoPath } from '../lib/qr';
-import type { Disponibilidad, EstadoDemo } from '../types';
+import type { Disponibilidad, EstadoDemo, EstadoIntruso } from '../types';
 import { pedirDemo } from './demoApi';
 import { useIntrusos } from '../hooks/useIntrusos';
 
@@ -29,6 +29,22 @@ function conductoresDe(plano: ZonaEnPlano[]) {
       );
   }
   return lista;
+}
+
+/** v2.1: explicación corta de por qué decidió el plan B (para que no parezca que el LLM "falló" sin razón). */
+function razonPlanB(error: string | null | undefined): string {
+  if (!error || /configur|sin clave|api key|LLM_API_KEY/i.test(error)) return 'sin LLM configurado';
+  if (/429|quota|cuota|RESOURCE_EXHAUSTED/i.test(error)) return 'se agotó la cuota gratuita del LLM';
+  if (/timeout|abort|tiempo/i.test(error)) return 'el LLM tardó demasiado';
+  if (/inválid|invalid|no está libre|PROPUESTA/i.test(error)) return 'la propuesta del LLM no era válida';
+  return 'el LLM no respondió';
+}
+
+interface Paso {
+  id: number;
+  hora: number;
+  texto: string;
+  tipo: 'conductor' | 'intruso' | 'agente' | 'sistema';
 }
 
 const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -66,6 +82,15 @@ export function Simulacion() {
   });
   const [desbloqueado, setDesbloqueado] = useState(false);
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: 'ok' | 'error' } | null>(null);
+  // v2.1: fase del carro intruso y "paso a paso" de lo que ocurre en la demo (trazabilidad para el público).
+  const [faseIntruso, setFaseIntruso] = useState<EstadoIntruso>({ fase: 'INACTIVO' });
+  const [pasos, setPasos] = useState<Paso[]>([]);
+  const registrarPaso = useCallback((texto: string, tipo: Paso['tipo']) => {
+    setPasos((l) => [{ id: Date.now() + Math.random(), hora: Date.now(), texto, tipo }, ...l].slice(0, 7));
+  }, []);
+  const codigoDe = useRef<Map<number, string>>(new Map()); // idZona → código (S1-B)
+  const destinosReasignados = useRef<Set<string>>(new Set()); // retenciones creadas por el agente (no por el conductor)
+  const ultimaFase = useRef('');
   const [intrusos, setIntrusos] = useState<Map<number, number>>(new Map()); // idZona → puesto que parpadea
   const previos = useRef<Map<string, string>>(new Map());
   const { intrusos: intrusosEnCamino, registrarIntruso } = useIntrusos();
@@ -73,13 +98,13 @@ export function Simulacion() {
   const [alias, setAlias] = useState<Map<string, string>>(new Map());
   // Navegaciones del celular sincronizadas por el servidor: clave "idZona-puesto" → inicio local y duración.
   const [navs, setNavs] = useState<Map<string, NavegacionSincronizada>>(new Map());
-  const registrarNav = useCallback((n: { idZona: number; puesto: number; duracionMs: number; transcurridoMs: number }) => {
+  const registrarNav = useCallback((n: { idZona: number; puesto: number; duracionMs: number; transcurridoMs: number; desde?: { x: number; y: number } }) => {
     setNavs((m) => {
       const k = `${n.idZona}-${n.puesto}`;
       const inicioLocal = performance.now() - n.transcurridoMs;
       const previo = m.get(k);
       if (previo && Math.abs(previo.inicioLocal - inicioLocal) < 1500) return m; // misma navegación
-      return new Map(m).set(k, { inicioLocal, duracionMs: n.duracionMs });
+      return new Map(m).set(k, { inicioLocal, duracionMs: n.duracionMs, desde: n.desde });
     });
   }, []);
 
@@ -88,13 +113,23 @@ export function Simulacion() {
       const d = await api.zonas();
       // Detecta carros intrusos: un puesto RETENIDO que pasó a OCUPADO.
       const nuevos = new Map<number, number>();
+      const primeraCarga = previos.current.size === 0;
       for (const p of d.pisos)
-        for (const z of p.zonas)
+        for (const z of p.zonas) {
+          codigoDe.current.set(z.idZona, z.codigo);
           for (const pu of z.puestos ?? []) {
             const clave = `${z.idZona}-${pu.numero}`;
-            if (previos.current.get(clave) === 'RETENIDO' && pu.estado === 'OCUPADO') nuevos.set(z.idZona, pu.numero);
+            const antes = previos.current.get(clave);
+            const nombre = `${z.codigo}-${dos(pu.numero)}`;
+            if (antes === 'RETENIDO' && pu.estado === 'OCUPADO') {
+              if (pu.conFastParking) registrarPaso(`El conductor estacionó en ${nombre}`, 'conductor');
+              else nuevos.set(z.idZona, pu.numero);
+            }
+            if (!primeraCarga && antes !== 'RETENIDO' && pu.estado === 'RETENIDO' && !destinosReasignados.current.has(clave))
+              registrarPaso(`Un conductor reservó ${nombre} (7 min)`, 'conductor');
             previos.current.set(clave, pu.estado);
           }
+        }
       if (nuevos.size) {
         setIntrusos(nuevos);
         setTimeout(() => setIntrusos(new Map()), 5000);
@@ -109,6 +144,7 @@ export function Simulacion() {
     try {
       const e = await pedirDemo<EstadoDemo>('/api/demo/estado');
       setDemo(e);
+      if (e.intruso) setFaseIntruso(e.intruso);
       e.navegaciones?.forEach(registrarNav);
     } catch {
       /* sin conexión: se reintenta */
@@ -129,6 +165,14 @@ export function Simulacion() {
       const d = JSON.parse((ev as MessageEvent).data) as {
         reasignaciones?: { de: { idZona: number; puesto: number | null }; a: { idZona: number; puesto: number } | null }[];
       };
+      for (const r of d.reasignaciones ?? []) {
+        if (r.a) destinosReasignados.current.add(`${r.a.idZona}-${r.a.puesto}`);
+        const de = `${codigoDe.current.get(r.de.idZona) ?? ''}-${dos(r.de.puesto)}`;
+        registrarPaso(
+          r.a ? `El agente reasignó al conductor: ${de} → ${codigoDe.current.get(r.a.idZona) ?? ''}-${dos(r.a.puesto)}` : `Sin puestos libres: la reserva ${de} se invalidó`,
+          'agente',
+        );
+      }
       if (d.reasignaciones?.length) {
         setAlias((m) => {
           const n = new Map(m);
@@ -144,12 +188,28 @@ export function Simulacion() {
     });
     fuente.addEventListener('trafico', () => cargarDemo());
     fuente.addEventListener('intruso', (ev) => registrarIntruso(JSON.parse((ev as MessageEvent).data)));
-    fuente.addEventListener('navegacion', (ev) => registrarNav(JSON.parse((ev as MessageEvent).data)));
+    fuente.addEventListener('navegacion', (ev) => {
+      const n = JSON.parse((ev as MessageEvent).data) as { idZona: number; puesto: number; duracionMs: number; transcurridoMs: number; desde?: { x: number; y: number } };
+      registrarNav(n);
+      const destino = `${codigoDe.current.get(n.idZona) ?? ''}-${dos(n.puesto)}`;
+      registrarPaso(n.desde ? `El conductor cambia de rumbo hacia ${destino}` : `El conductor va hacia ${destino} (${Math.round(n.duracionMs / 1000)} s)`, 'conductor');
+    });
+    fuente.addEventListener('intruso-estado', (ev) => {
+      const e = JSON.parse((ev as MessageEvent).data) as EstadoIntruso;
+      setFaseIntruso(e);
+      const lugar = e.zona ? `${e.zona}-${dos(e.puesto ?? 0)}` : '';
+      const clave = `${e.fase}-${lugar}`;
+      if (clave === ultimaFase.current) return; // el servidor puede repetir la misma fase
+      ultimaFase.current = clave;
+      if (e.fase === 'ESPERANDO') registrarPaso('Carro intruso listo en la puerta trasera: saldrá cuando un conductor reserve', 'intruso');
+      if (e.fase === 'EN_CAMINO') registrarPaso(`El carro intruso arranca hacia ${lugar}`, 'intruso');
+      if (e.fase === 'ESTACIONADO') registrarPaso(`El carro intruso llegó primero y ocupó ${lugar}`, 'intruso');
+    });
     return () => {
       clearInterval(sondeo);
       fuente.close();
     };
-  }, [cargarZonas, cargarDemo, registrarNav, registrarIntruso]);
+  }, [cargarZonas, cargarDemo, registrarNav, registrarIntruso, registrarPaso]);
 
   useEffect(() => {
     if (pin) desbloquear(pin, true);
@@ -186,6 +246,29 @@ export function Simulacion() {
     }
   }
 
+  async function prepararIntruso(cancelar = false) {
+    try {
+      const e = await pedirDemo<EstadoIntruso>(`/api/demo/intruso/${cancelar ? 'cancelar' : 'preparar'}`, { method: 'POST', body: '{}' }, pin);
+      setFaseIntruso(e);
+      if (cancelar) registrarPaso('Carro intruso retirado', 'sistema');
+    } catch (e) {
+      avisar((e as Error).message, 'error');
+    }
+  }
+
+  async function reiniciar() {
+    try {
+      const r = await pedirDemo<{ retencionesCanceladas: number; vehiculosRetirados: number }>('/api/demo/reiniciar', { method: 'POST', body: '{}' }, pin);
+      setPasos([]);
+      setAlias(new Map());
+      setNavs(new Map());
+      avisar(`Demo reiniciada: ${r.retencionesCanceladas} reservas canceladas y ${r.vehiculosRetirados} carros retirados.`, 'ok');
+      await Promise.all([cargarZonas(), cargarDemo()]);
+    } catch (e) {
+      avisar((e as Error).message, 'error');
+    }
+  }
+
   async function intruso() {
     try {
       const r = await pedirDemo<{ estado?: string; zona?: string; puesto?: number; llegaEnMs?: number; conflictos?: { mensaje: string; motor: string }[] }>(
@@ -206,6 +289,16 @@ export function Simulacion() {
   }
 
   const pisos = datos?.pisos ?? [];
+  // v2.1: el intruso preparado se dibuja detenido en la puerta trasera del sótano al que va (o del sótano 1).
+  const idPisoIntruso = (() => {
+    if (faseIntruso.fase === 'ESPERANDO') return pisos[0]?.idPiso;
+    if (faseIntruso.fase === 'EN_CAMINO' && faseIntruso.zona) {
+      const p = pisos.find((x) => x.zonas.some((z) => z.codigo === faseIntruso.zona));
+      const yaSalio = intrusosEnCamino.some((i) => codigoDe.current.get(i.idZona) === faseIntruso.zona && i.numero === faseIntruso.puesto && performance.now() - i.inicioLocal < i.duracionMs + 5000);
+      return yaSalio ? undefined : p?.idPiso;
+    }
+    return undefined;
+  })();
   const planos = useMemo(
     () =>
       pisos.map((p) => {
@@ -279,6 +372,7 @@ export function Simulacion() {
                     })()}
                     etiquetas={vista !== 'general' || calidad.nivel === 'alto'}
                     intrusosEnCamino={intrusosEnCamino}
+                    intrusoEsperando={piso.idPiso === idPisoIntruso}
                   />
                   {/* Un carro vinotinto por conductor de FastParking: lleva su propia key estable por zona para
                       que, al ser reasignado dentro de la zona, gire y continúe desde donde iba. */}
@@ -340,11 +434,62 @@ export function Simulacion() {
                     ))}
                   </div>
                 </div>
-                <button type="button" className="sim__intruso" onClick={intruso}>
-                  Carro intruso
-                  <small>Ocupa el puesto que reservó el conductor</small>
+                {faseIntruso.fase === 'INACTIVO' ? (
+                  <>
+                    <button type="button" className="sim__intruso" onClick={() => prepararIntruso()}>
+                      Preparar carro intruso
+                      <small>Espera en la puerta trasera y sale cuando el conductor reserve</small>
+                    </button>
+                    <button type="button" className="sim__enlace" onClick={intruso}>
+                      Lanzar ahora hacia la reserva actual
+                    </button>
+                  </>
+                ) : (
+                  <div className={`sim__estado-intruso sim__estado-intruso--${faseIntruso.fase.toLowerCase()}`} role="status">
+                    <span className="sim__estado-punto" aria-hidden="true" />
+                    <div>
+                      <strong>
+                        {faseIntruso.fase === 'ESPERANDO'
+                          ? 'Intruso esperando'
+                          : faseIntruso.fase === 'EN_CAMINO'
+                            ? `Intruso en camino a ${faseIntruso.zona}-${dos(faseIntruso.puesto ?? 0)}`
+                            : `Intruso ocupó ${faseIntruso.zona}-${dos(faseIntruso.puesto ?? 0)}`}
+                      </strong>
+                      <small>
+                        {faseIntruso.fase === 'ESPERANDO'
+                          ? 'Reserva un puesto en el celular: el intruso saldrá hacia ese puesto.'
+                          : faseIntruso.fase === 'EN_CAMINO'
+                            ? 'Entra por la puerta trasera para llegar antes que el conductor.'
+                            : 'El agente está buscando un puesto nuevo para el conductor.'}
+                      </small>
+                    </div>
+                    {faseIntruso.fase === 'ESPERANDO' && (
+                      <button type="button" className="sim__enlace" onClick={() => prepararIntruso(true)}>
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
+                )}
+                <button type="button" className="sim__enlace sim__enlace--reinicio" onClick={reiniciar}>
+                  ↺ Reiniciar demo
                 </button>
               </>
+            )}
+          </section>
+
+          <section className="sim__tarjeta">
+            <h2>Paso a paso</h2>
+            {pasos.length === 0 ? (
+              <p className="sim__nota">Aquí verás, en orden, lo que hacen el conductor, el carro intruso y el agente.</p>
+            ) : (
+              <ol className="sim__pasos">
+                {pasos.map((p) => (
+                  <li key={p.id} className={`sim__paso sim__paso--${p.tipo}`}>
+                    <time>{new Date(p.hora).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time>
+                    <span>{p.texto}</span>
+                  </li>
+                ))}
+              </ol>
             )}
           </section>
 
@@ -375,6 +520,9 @@ export function Simulacion() {
                   {demo.decisiones[0].zonaNueva ? `${demo.decisiones[0].zonaNueva}-${dos(demo.decisiones[0].puestoNuevo)}` : '—'}
                 </span>
               )}
+              {demo?.decisiones[0]?.motor === 'REGLAS' && (
+                <span className="sim__razon">Plan B: {razonPlanB(demo.decisiones[0].error)}</span>
+              )}
             </summary>
             <ol>
               {demo?.decisiones.slice(0, 6).map((d, i) => (
@@ -395,7 +543,7 @@ export function Simulacion() {
                   )}
                   {d.mensaje && <p className="sim__decision-mensaje">“{d.mensaje}”</p>}
                   <p className="sim__decision-meta">
-                    {d.latenciaMs} ms{d.error ? ` · plan B: ${d.error.split('\n')[0].slice(0, 60)}` : ''}
+                    {d.latenciaMs} ms{d.motor === 'REGLAS' ? ` · plan B: ${razonPlanB(d.error)}` : ''}
                   </p>
                 </li>
               ))}

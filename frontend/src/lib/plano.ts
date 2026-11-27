@@ -138,6 +138,21 @@ export function rutaHastaPuesto(p: Puesto, lado: 'izq' | 'der'): Punto[] {
   ];
 }
 
+/**
+ * v2.1: ruta desde un punto cualquiera del plano (donde va la flecha) hasta un puesto. Si el punto está
+ * fuera del carril (p. ej. entrando al puesto anterior), primero vuelve al carril; así, al reasignar,
+ * la flecha continúa desde donde iba en lugar de volver a la entrada del sótano.
+ */
+export function rutaDesde(origen: Punto, p: Puesto, lado: 'izq' | 'der'): Punto[] {
+  const entradaPuesto = lado === 'izq' ? p.x + p.ancho - 10 : p.x + 10;
+  const puntos: Punto[] = [{ x: origen.x, y: origen.y }];
+  if (Math.abs(origen.x - CENTRO_CARRIL) > 1) puntos.push({ x: CENTRO_CARRIL, y: origen.y });
+  if (Math.abs(origen.y - p.cy) > 1) puntos.push({ x: CENTRO_CARRIL, y: p.cy });
+  puntos.push({ x: entradaPuesto, y: p.cy });
+  // Quita puntos repetidos (tramos de largo cero confunden el rumbo de la flecha).
+  return puntos.filter((q, i) => i === 0 || Math.hypot(q.x - puntos[i - 1].x, q.y - puntos[i - 1].y) > 0.5);
+}
+
 export function longitud(ruta: Punto[]): number {
   let total = 0;
   for (let i = 1; i < ruta.length; i++) total += Math.hypot(ruta[i].x - ruta[i - 1].x, ruta[i].y - ruta[i - 1].y);

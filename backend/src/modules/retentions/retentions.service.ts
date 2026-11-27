@@ -7,6 +7,7 @@ import { bloquearZona, listarZonas, marcarZonaActualizada } from '../zones/avail
 import { ordenarAlternativas } from '../zones/availability.rules.js';
 import { guardarUbicacion } from '../locations/locations.service.js';
 import { ajustarPuestos, marcarPuesto, primerPuestoLibre, puestoEstaLibre } from '../zones/puestos.service.js';
+import { alCrearRetencion } from '../traffic/traffic.service.js';
 import * as repo from './retentions.repository.js';
 import type { RetencionVista } from './retentions.repository.js';
 
@@ -70,6 +71,8 @@ export async function solicitarRetencion(idSesion: string, idZona: number, puest
   const creada = (await repo.buscarPorId(pool, idCreada))!;
   notificador.publicarZonasActualizadas();
   notificador.publicarRetencion(idSesion, { tipo: 'CREADA', retencion: creada });
+  // v2.1: si en el iPad hay un carro intruso preparado, arranca hacia este puesto.
+  alCrearRetencion(creada);
   return creada;
 }
 

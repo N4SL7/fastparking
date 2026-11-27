@@ -17,16 +17,20 @@ retentionsRouter.use(requerirSesion);
 
 const SolicitarSchema = z.object({ idZona: z.number().int().positive(), puesto: z.number().int().min(1).max(99).optional() });
 const IdSchema = z.string().uuid();
-const NavegacionSchema = z.object({ duracionMs: z.number().int().min(1_000).max(10 * 60_000) });
+const NavegacionSchema = z.object({
+  duracionMs: z.number().int().min(1_000).max(10 * 60_000),
+  // v2.1: punto del plano desde donde sale la flecha (al reasignar, la ruta continúa desde ahí).
+  desde: z.object({ x: z.number().finite(), y: z.number().finite() }).optional(),
+});
 
 /** POST /api/retentions/:id/navigation — el conductor empezó a seguir la flecha (sincroniza /simulacion). */
 retentionsRouter.post(
   '/:id/navigation',
   asyncHandler(async (req, res) => {
-    const { duracionMs } = NavegacionSchema.parse(req.body);
+    const { duracionMs, desde } = NavegacionSchema.parse(req.body);
     const r = await obtenerRetencion(res.locals.idSesion, IdSchema.parse(req.params.id));
     if (r.estado !== 'VIGENTE' || !r.puesto) throw new AppError(409, 'RETENCION_NO_VIGENTE', 'La retención ya no está vigente.');
-    iniciarNavegacion(r.idZona, r.puesto, duracionMs);
+    iniciarNavegacion(r.idZona, r.puesto, duracionMs, desde);
     res.status(204).end();
   }),
 );

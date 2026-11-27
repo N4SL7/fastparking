@@ -101,7 +101,15 @@ export interface EstadoDemo {
   agente: { motor: 'LLM' | 'REGLAS'; modelo: string | null };
   controlesHabilitados: boolean;
   decisiones: DecisionAgente[];
-  navegaciones?: { idZona: number; puesto: number; duracionMs: number; transcurridoMs: number }[];
+  navegaciones?: { idZona: number; puesto: number; duracionMs: number; transcurridoMs: number; desde?: { x: number; y: number } }[];
+  intruso?: EstadoIntruso;
+}
+
+/** v2.1: fase del carro intruso de la demostración. */
+export interface EstadoIntruso {
+  fase: 'INACTIVO' | 'ESPERANDO' | 'EN_CAMINO' | 'ESTACIONADO';
+  zona?: string;
+  puesto?: number;
 }
 
 export type MetodoPago = 'TARJETA' | 'NEQUI' | 'PSE';

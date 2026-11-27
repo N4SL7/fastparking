@@ -88,12 +88,15 @@ function ComprobanteCard({ c, ahora }: { c: Comprobante; ahora: number }) {
 /** RF-11 / RF-17: liquidación, pago simulado, comprobante con QR de salida e historial. */
 export function Billetera({
   ahora,
+  tiquete,
   onAviso,
-  onNuevoIngreso,
+  onSalir,
 }: {
   ahora: number;
+  tiquete: string;
   onAviso: (texto: string, tipo?: 'exito' | 'alerta' | 'info') => void;
-  onNuevoIngreso: () => void;
+  /** v2.1: cierra la visita (el botón "Salir" vive aquí, al final del recorrido). */
+  onSalir: () => void;
 }) {
   const [cotizacion, setCotizacion] = useState<Cotizacion | null>(null);
   const [metodo, setMetodo] = useState<MetodoPago>('TARJETA');
@@ -146,7 +149,7 @@ export function Billetera({
       ) : (
         <>
           <section className="tarjeta tarjeta--marca cuenta" aria-labelledby="titulo-cuenta">
-            <p className="etiqueta etiqueta--clara">Total a pagar</p>
+            <p className="etiqueta etiqueta--clara">Total a pagar · tiquete {tiquete}</p>
             <h2 id="titulo-cuenta" className="cuenta__total">
               {pesos(valorVivo)}
             </h2>
@@ -164,7 +167,7 @@ export function Billetera({
                 <span className="resumen__rotulo">por minuto</span>
               </div>
             </div>
-            <p className="texto-claro texto-chico">Tarifa ilustrativa del prototipo, no es la tarifa oficial del centro comercial.</p>
+            <p className="texto-claro texto-chico">Tarifa ilustrativa · pago de prueba, sin dinero real.</p>
           </section>
 
           <section className="tarjeta" aria-labelledby="titulo-metodo">
@@ -187,7 +190,6 @@ export function Billetera({
                 </button>
               ))}
             </div>
-            <p className="nota">Modo demostración: no se piden ni se guardan datos de tarjetas o cuentas.</p>
             <button type="button" className="boton boton--grande" disabled={pagando} onClick={pagar}>
               {pagando ? 'Procesando…' : `Pagar ${pesos(valorVivo)}`}
             </button>
@@ -219,9 +221,14 @@ export function Billetera({
         )}
       </section>
 
-      {pago && (
-        <button type="button" className="boton boton--secundario" onClick={onNuevoIngreso}>
-          Simular un nuevo ingreso (otro tiquete)
+      {pago ? (
+        // Salir vuelve a la máquina de ingreso, que ya ofrece un tiquete nuevo (no hace falta otro botón).
+        <button type="button" className="boton boton--grande" onClick={onSalir}>
+          Salir de FastParking
+        </button>
+      ) : (
+        <button type="button" className="enlace-salir" onClick={onSalir}>
+          Salir de FastParking
         </button>
       )}
     </div>

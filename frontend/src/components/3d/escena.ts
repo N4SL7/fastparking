@@ -79,13 +79,16 @@ export function trayectoEntrada(p: Puesto, lado: 'izq' | 'der'): Cuadro[] {
   ]);
 }
 
+/** v2.1: donde espera el carro intruso "preparado": al fondo del sótano, junto a la puerta trasera. */
+export const PUNTO_ESPERA_INTRUSO = { x: CENTRO_CARRIL, y: PLANO.alto - 170, yaw: ARRIBA };
+
 /**
  * RF-19: el carro intruso entra por la OTRA puerta (el fondo del sótano), sube por la vía y se mete de frente
  * en el puesto retenido. Los tiempos se escalan para que llegue exactamente cuando el servidor ocupa el puesto.
  */
 export function trayectoIntruso(p: Puesto, lado: 'izq' | 'der', duracionMs: number): Cuadro[] {
   const base = cuadros([
-    { x: CENTRO_CARRIL, y: PLANO.alto + 40, yaw: ARRIBA },
+    { x: CENTRO_CARRIL, y: PUNTO_ESPERA_INTRUSO.y, yaw: ARRIBA },
     { x: CENTRO_CARRIL, y: p.cy + 26, yaw: ARRIBA },
     { x: p.cx, y: p.cy, yaw: lado === 'izq' ? Math.PI : 0 },
   ]);

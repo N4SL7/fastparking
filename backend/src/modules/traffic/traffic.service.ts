@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { config } from '../../config.js';
-import { pool } from '../../db/pool.js';
+import { pool, withTransaction } from '../../db/pool.js';
 import { AppError } from '../../shared/errors.js';
 import { notificador } from '../../shared/realtime.js';
 import { procesarEvento, type ResultadoEvento } from '../events/events.service.js';
+import { limpiarNavegaciones } from '../retentions/navigation.service.js';
+import { cerrar as cerrarRetencion, registrarHistorial } from '../retentions/retentions.repository.js';
 
 /**
  * Motor de tráfico simulado (RF-20, D-24). Corre EN EL SERVIDOR para que el iPad (/simulacion) y el celular del
@@ -74,10 +76,102 @@ export function cambiarTrafico(activo: boolean, intervaloMs?: number): EstadoTra
 
 /**
  * RF-19: "carro intruso". Un vehículo que NO usa FastParking ocupa el puesto retenido por un conductor.
- * Si se indica la sesión, se usa su retención; si no, la retención vigente más reciente.
+ *
+ * v2.1 — flujo pensado para la exposición, en dos tiempos:
+ *  1. "Preparar intruso" (iPad): el carro naranja aparece detenido en la puerta trasera y ESPERA.
+ *  2. Cuando un conductor retiene un puesto en el celular, el intruso arranca hacia ese puesto,
+ *     llega primero, se estaciona y, tras una breve pausa, el servidor registra la ocupación: así
+ *     primero se ve la ocupación y después la reasignación del agente.
+ * "Lanzar ahora" conserva el comportamiento anterior (va hacia la retención vigente más reciente).
  */
 export type ResultadoIntruso = ResultadoEvento | { estado: 'EN_CAMINO'; zona: string; puesto: number; llegaEnMs: number };
 
+export type FaseIntruso = 'INACTIVO' | 'ESPERANDO' | 'EN_CAMINO' | 'ESTACIONADO';
+export interface EstadoIntruso {
+  fase: FaseIntruso;
+  zona?: string;
+  puesto?: number;
+}
+
+let intruso: EstadoIntruso = { fase: 'INACTIVO' };
+const temporizadoresIntruso = new Set<NodeJS.Timeout>();
+
+function cambiarFase(nuevo: EstadoIntruso) {
+  intruso = nuevo;
+  notificador.publicarIntrusoEstado(intruso);
+}
+
+function programar(fn: () => void, ms: number) {
+  const t = setTimeout(() => {
+    temporizadoresIntruso.delete(t);
+    fn();
+  }, ms);
+  t.unref();
+  temporizadoresIntruso.add(t);
+}
+
+export function estadoIntruso(): EstadoIntruso {
+  return { ...intruso };
+}
+
+/** Deja el carro intruso esperando en la puerta trasera hasta que un conductor reserve. */
+export function prepararIntruso(): EstadoIntruso {
+  if (intruso.fase === 'EN_CAMINO' || intruso.fase === 'ESTACIONADO') {
+    throw new AppError(409, 'INTRUSO_EN_CURSO', 'Ya hay un carro intruso en camino. Espera a que termine.');
+  }
+  cambiarFase({ fase: 'ESPERANDO' });
+  return estadoIntruso();
+}
+
+/** Retira el intruso que estaba esperando (no afecta a uno que ya va en camino). */
+export function cancelarIntruso(): EstadoIntruso {
+  if (intruso.fase === 'ESPERANDO') cambiarFase({ fase: 'INACTIVO' });
+  return estadoIntruso();
+}
+
+function ocuparPuesto(zona: string, puesto: number) {
+  return procesarEvento({
+    idEvento: randomUUID(),
+    codigoZona: zona,
+    tipo: 'ENTRADA',
+    cantidad: 1,
+    puesto,
+    fuente: 'SIMULADOR',
+    ocurridoEn: new Date(),
+  });
+}
+
+/** Anima el intruso hacia el puesto (celular e iPad) y, al llegar + pausa, registra la ocupación. */
+async function enviarIntruso(zona: string, puesto: number): Promise<void> {
+  const { rows } = await pool.query<{ id_zona: number }>('SELECT id_zona FROM zona WHERE codigo = $1', [zona]);
+  if (rows.length === 0) return;
+  cambiarFase({ fase: 'EN_CAMINO', zona, puesto });
+  notificador.publicarIntruso({ idZona: rows[0].id_zona, puesto, duracionMs: config.intrusoMs, transcurridoMs: 0 });
+  programar(() => {
+    cambiarFase({ fase: 'ESTACIONADO', zona, puesto });
+    programar(() => {
+      // Si el conductor llegó primero, el puesto ya figura ocupado y el intruso no lo toma.
+      ocuparPuesto(zona, puesto)
+        .catch((err) => console.error('[intruso]', (err as Error).message))
+        .finally(() => programar(() => cambiarFase({ fase: 'INACTIVO' }), 3_000));
+    }, config.intrusoPausaMs);
+  }, config.intrusoMs);
+}
+
+/**
+ * Gancho llamado al crear una retención: si hay un intruso preparado, arranca hacia ese mismo puesto
+ * después de una espera corta (el conductor alcanza a ver su reserva antes de que el intruso salga).
+ */
+export function alCrearRetencion(r: { zonaCodigo: string; puesto: number | null }): void {
+  if (intruso.fase !== 'ESPERANDO' || r.puesto === null) return;
+  const puesto = r.puesto;
+  cambiarFase({ fase: 'EN_CAMINO', zona: r.zonaCodigo, puesto });
+  programar(() => {
+    enviarIntruso(r.zonaCodigo, puesto).catch((err) => console.error('[intruso]', (err as Error).message));
+  }, config.intrusoEsperaMs);
+}
+
+/** "Lanzar ahora": va hacia la retención vigente más reciente (o la de la sesión indicada). */
 export async function lanzarIntruso(idSesion?: string): Promise<ResultadoIntruso> {
   const { rows } = await pool.query<{ zona: string; puesto: number }>(
     `SELECT z.codigo AS zona, r.puesto FROM retencion r JOIN zona z ON z.id_zona = r.id_zona
@@ -89,24 +183,50 @@ export async function lanzarIntruso(idSesion?: string): Promise<ResultadoIntruso
   if (rows.length === 0) {
     throw new AppError(409, 'SIN_RETENCION_VIGENTE', 'No hay ninguna retención vigente con puesto: primero reserva un puesto en el celular.');
   }
-  const ocupar = () =>
-    procesarEvento({
+  if (config.intrusoMs === 0) return ocuparPuesto(rows[0].zona, rows[0].puesto);
+  await enviarIntruso(rows[0].zona, rows[0].puesto);
+  return { estado: 'EN_CAMINO', zona: rows[0].zona, puesto: rows[0].puesto, llegaEnMs: config.intrusoMs };
+}
+
+/**
+ * v2.1: "Reiniciar demo". Deja el parqueadero listo para una nueva demostración: cancela las retenciones
+ * vigentes, saca los carros de conductores de FastParking, olvida las navegaciones y retira el intruso.
+ */
+export async function reiniciarDemo(): Promise<{ retencionesCanceladas: number; vehiculosRetirados: number }> {
+  for (const t of temporizadoresIntruso) clearTimeout(t);
+  temporizadoresIntruso.clear();
+  cambiarTrafico(false);
+  const canceladas = await withTransaction(async (tx) => {
+    const { rows } = await tx.query<{ id_retencion: string; id_sesion: string; id_zona: number }>(
+      `SELECT id_retencion, id_sesion, id_zona FROM retencion WHERE estado = 'VIGENTE' ORDER BY id_zona FOR UPDATE`,
+    );
+    for (const r of rows) {
+      if (await cerrarRetencion(tx, r.id_retencion, 'CANCELADA', 'REINICIO_DEMO')) {
+        await registrarHistorial(tx, { idRetencion: r.id_retencion, estadoAnterior: 'VIGENTE', estadoNuevo: 'CANCELADA', motivo: 'REINICIO_DEMO' });
+      }
+    }
+    return rows;
+  });
+  for (const r of canceladas) notificador.publicarRetencion(r.id_sesion, { tipo: 'CANCELADA', retencion: null });
+
+  const { rows: vehiculos } = await pool.query<{ zona: string; puesto: number | null }>(
+    `SELECT z.codigo AS zona, u.puesto FROM ubicacion_vehiculo u JOIN zona z ON z.id_zona = u.id_zona`,
+  );
+  for (const v of vehiculos) {
+    if (v.puesto === null) continue;
+    await procesarEvento({
       idEvento: randomUUID(),
-      codigoZona: rows[0].zona,
-      tipo: 'ENTRADA',
+      codigoZona: v.zona,
+      tipo: 'SALIDA',
       cantidad: 1,
-      puesto: rows[0].puesto,
+      puesto: v.puesto,
       fuente: 'SIMULADOR',
       ocurridoEn: new Date(),
-    });
-  if (config.intrusoMs === 0) return ocupar();
-
-  // El intruso entra por la otra puerta y tarda unos segundos: si llega antes que el conductor, ocupa el puesto
-  // y el agente reasigna; si el conductor llega primero, el puesto ya está ocupado y el intruso no lo toma.
-  const { rows: z } = await pool.query<{ id_zona: number }>('SELECT id_zona FROM zona WHERE codigo = $1', [rows[0].zona]);
-  notificador.publicarIntruso({ idZona: z[0].id_zona, puesto: rows[0].puesto, duracionMs: config.intrusoMs, transcurridoMs: 0 });
-  setTimeout(() => {
-    ocupar().catch((err) => console.error('[intruso]', (err as Error).message));
-  }, config.intrusoMs).unref();
-  return { estado: 'EN_CAMINO', zona: rows[0].zona, puesto: rows[0].puesto, llegaEnMs: config.intrusoMs };
+    }).catch((err) => console.error('[reinicio]', (err as Error).message));
+  }
+  await pool.query('DELETE FROM ubicacion_vehiculo');
+  limpiarNavegaciones();
+  cambiarFase({ fase: 'INACTIVO' });
+  notificador.publicarZonasActualizadas();
+  return { retencionesCanceladas: canceladas.length, vehiculosRetirados: vehiculos.length };
 }

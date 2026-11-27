@@ -28,9 +28,10 @@ export function PanelRetencion({
     <section className="tarjeta tarjeta--marca retencion" aria-labelledby="titulo-retencion">
       <div className="retencion__fila">
         <div>
-          <p className="etiqueta etiqueta--clara">Retención temporal simulada</p>
+          <p className="etiqueta etiqueta--clara">Tu puesto apartado</p>
           <h2 id="titulo-retencion" className="titulo-grande">
             {retencion.zonaCodigo}
+            {retencion.puesto ? <span className="retencion__puesto"> · P{String(retencion.puesto).padStart(2, '0')}</span> : null}
           </h2>
           <p className="texto-claro">
             {retencion.pisoNombre} · {retencion.zonaNombre.replace(/^Zona \w — /, '')}
@@ -56,7 +57,8 @@ export function PanelRetencion({
           </span>
         </div>
       </div>
-      <p className="texto-claro texto-chico">{retencion.aviso}</p>
+      {/* RN-03: un solo aviso, corto: la retención es temporal y no garantiza el cupo físico. */}
+      <p className="texto-claro texto-chico">Retención temporal de 7 min · no garantiza el cupo físico.</p>
       <div className="retencion__acciones">
         <button type="button" className="boton boton--claro" onClick={onVerRuta}>
           <IconoNavegar size={16} /> Ir con la ruta

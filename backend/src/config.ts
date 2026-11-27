@@ -53,6 +53,10 @@ export const config = {
   },
   /** RF-19: segundos que tarda el carro intruso en llegar al puesto (entra por la otra puerta). 0 = inmediato. */
   intrusoMs: process.env.INTRUSO_MS === '0' ? 0 : entero('INTRUSO_MS', 9_000),
+  /** v2.1: con el intruso "preparado", segundos que espera tras la reserva del conductor antes de arrancar. */
+  intrusoEsperaMs: process.env.INTRUSO_ESPERA_MS === '0' ? 0 : entero('INTRUSO_ESPERA_MS', 1_500),
+  /** v2.1: pausa entre que el intruso se estaciona y la ocupación (para que la reasignación se vea después). */
+  intrusoPausaMs: process.env.INTRUSO_PAUSA_MS === '0' ? 0 : entero('INTRUSO_PAUSA_MS', 1_500),
   /** D-24: PIN de los controles de la demostración (/simulacion). Vacío = controles deshabilitados. */
   demoPin: process.env.DEMO_PIN ?? '',
 } as const;

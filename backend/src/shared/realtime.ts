@@ -55,6 +55,11 @@ export class NotificadorSSE {
     this.enviar('intruso', datos, () => true);
   }
 
+  /** v2.1: fase del carro intruso (ESPERANDO, EN_CAMINO, ESTACIONADO, INACTIVO), para el iPad y el celular. */
+  publicarIntrusoEstado(datos: unknown): void {
+    this.enviar('intruso-estado', datos, () => true);
+  }
+
   publicarRetencion(idSesion: string, datos: unknown): void {
     this.enviar('retencion', datos, (s) => s.idSesion === idSesion);
   }

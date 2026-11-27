@@ -6,7 +6,7 @@ import { pool } from '../../db/pool.js';
 import { AppError, asyncHandler } from '../../shared/errors.js';
 import { ultimasDecisiones } from '../agent/agent.repository.js';
 import { obtenerProveedorLLM, ultimoErrorLLM, verificacionLLM } from '../agent/llm.provider.js';
-import { cambiarTrafico, estadoTrafico, lanzarIntruso } from './traffic.service.js';
+import { cambiarTrafico, cancelarIntruso, estadoIntruso, estadoTrafico, lanzarIntruso, prepararIntruso, reiniciarDemo } from './traffic.service.js';
 import { navegacionesActivas } from '../retentions/navigation.service.js';
 
 export const demoRouter = Router();
@@ -29,6 +29,7 @@ demoRouter.get(
     const llm = obtenerProveedorLLM();
     res.json({
       trafico: estadoTrafico(),
+      intruso: estadoIntruso(),
       agente: { motor: llm ? 'LLM' : 'REGLAS', modelo: llm?.modelo ?? null, ultimoError: ultimoErrorLLM, verificacion: verificacionLLM },
       controlesHabilitados: Boolean(config.demoPin),
       decisiones: await ultimasDecisiones(pool),
@@ -60,5 +61,24 @@ demoRouter.post(
     const { idSesion } = IntrusoBody.parse(req.body ?? {});
     const r = await lanzarIntruso(idSesion);
     res.status('estado' in r ? 202 : 201).json(r);
+  }),
+);
+
+/** POST /api/demo/intruso/preparar — v2.1: el intruso espera en la puerta trasera hasta que alguien reserve. */
+demoRouter.post('/intruso/preparar', requerirPin, (_req, res) => {
+  res.json(prepararIntruso());
+});
+
+/** POST /api/demo/intruso/cancelar — v2.1: retira el intruso que estaba esperando. */
+demoRouter.post('/intruso/cancelar', requerirPin, (_req, res) => {
+  res.json(cancelarIntruso());
+});
+
+/** POST /api/demo/reiniciar — v2.1: deja el parqueadero listo para una nueva demostración. */
+demoRouter.post(
+  '/reiniciar',
+  requerirPin,
+  asyncHandler(async (_req, res) => {
+    res.json(await reiniciarDemo());
   }),
 );

@@ -15,6 +15,8 @@ export default defineConfig({
       LLM_TIMEOUT_MS: '400',
       DEMO_PIN: 'pin-de-pruebas',
       INTRUSO_MS: '0',
+      INTRUSO_ESPERA_MS: '0',
+      INTRUSO_PAUSA_MS: '0',
     },
   },
 });

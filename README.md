@@ -168,7 +168,9 @@ No se suben secretos al repositorio: copia los archivos `.env.example` como `.en
 | `LLM_BASE_URL` | backend | Endpoint compatible con OpenAI |
 | `LLM_TIMEOUT_MS` | backend | Tiempo máximo de espera al LLM antes del plan B |
 | `DEMO_PIN` | backend | PIN de los controles de `/simulacion` |
-| `INTRUSO_MS` | backend | Segundos que tarda el carro intruso en llegar (9000) |
+| `INTRUSO_MS` | backend | Milisegundos que tarda el carro intruso en llegar (9000) |
+| `INTRUSO_ESPERA_MS` | backend | v2.1: espera del intruso preparado tras la reserva antes de arrancar (1500) |
+| `INTRUSO_PAUSA_MS` | backend | v2.1: pausa entre que el intruso se estaciona y la ocupación (1500) |
 
 ## API
 
@@ -191,6 +193,7 @@ No se suben secretos al repositorio: copia los archivos `.env.example` como `.en
 | POST | `/api/retentions/:id/navigation` | RF-20 (sincroniza la navegación) |
 | GET | `/api/demo/estado` | RF-18, RF-20 (motor, verificación del LLM, decisiones) |
 | POST | `/api/demo/trafico` · `/api/demo/intruso` · `/api/demo/pin` | RF-19, RF-20 (requieren `x-demo-pin`) |
+| POST | `/api/demo/intruso/preparar` · `/api/demo/intruso/cancelar` · `/api/demo/reiniciar` | v2.1: intruso en dos tiempos y reinicio de la demo (requieren `x-demo-pin`) |
 | GET | `/api/events/stream` | RF-06 (SSE) |
 
 Las rutas protegidas requieren la cabecera `X-Session-Id`. Los errores tienen el formato `{ "error": { "code", "message", "details?" } }`.

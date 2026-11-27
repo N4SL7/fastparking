@@ -13,6 +13,8 @@ const REASIGNACION_MS = 6000; // si lo reasignan sin nueva navegación, se mueve
 export interface NavegacionSincronizada {
   inicioLocal: number;
   duracionMs: number;
+  /** v2.1: punto desde donde continúa la flecha del celular tras una reasignación. */
+  desde?: Punto;
 }
 
 /**
@@ -52,7 +54,9 @@ export function CarroConductor({
       return;
     }
     // Navegación del celular: la ruta (sin el centro del puesto) dura lo mismo que la flecha.
-    const desde = posicionActual && Math.hypot(posicionActual.x - ruta[0].x, posicionActual.y - ruta[0].y) > 20 ? posicionActual : null;
+    // v2.1: si el celular informa desde dónde sigue (desvío), se usa ese punto; si no, la posición estimada.
+    const desde =
+      nav.desde ?? (posicionActual && Math.hypot(posicionActual.x - ruta[0].x, posicionActual.y - ruta[0].y) > 20 ? posicionActual : null);
     const camino = desde ? [desde, { x: ruta[0].x, y: desde.y }, ...ruta.slice(1)] : ruta;
     tramo.current = { ruta: camino, inicio: nav.inicioLocal, duracion: nav.duracionMs };
     // eslint-disable-next-line react-hooks/exhaustive-deps

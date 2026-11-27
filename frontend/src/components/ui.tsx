@@ -1,27 +1,19 @@
 import type { EstadoZona } from '../types';
 
-export function Encabezado({ tiquete, onSalir }: { tiquete?: string; onSalir?: () => void }) {
+/** v2.1: encabezado limpio (marca y lugar). El tiquete se ve en la Billetera y "Salir" queda al final del recorrido. */
+export function Encabezado() {
   return (
     <header className="encabezado">
       <div className="encabezado__marca">
-        <img src="/icon.svg" alt="" className="encabezado__logo" width={40} height={40} />
+        <img src="/icon.svg" alt="" className="encabezado__logo" width={36} height={36} />
         <div>
           <h1 className="encabezado__titulo">FastParking</h1>
-          <p className="encabezado__sub">Parque La Colina · prototipo académico</p>
+          <p className="encabezado__sub">Parque La Colina</p>
         </div>
       </div>
-      {tiquete && (
-        <div className="encabezado__acciones">
-          <span className="chip chip--claro" title="Tiquete de esta sesión">
-            {tiquete}
-          </span>
-          {onSalir && (
-            <button type="button" className="encabezado__salir" onClick={onSalir}>
-              Salir
-            </button>
-          )}
-        </div>
-      )}
+      <span className="encabezado__demo" title="Prototipo académico con datos simulados">
+        Demo
+      </span>
     </header>
   );
 }
@@ -89,7 +81,7 @@ export function EstadoDatos({
   return (
     <p className="frescura">
       <span className={`punto ${conectadoSSE ? 'punto--vivo' : ''}`} aria-hidden="true" />
-      Actualizado a las {ultimaCarga ? hora(ultimaCarga) : '—'} {conectadoSSE ? '· en tiempo real' : '· consultando cada 15 s'}
+      {conectadoSSE ? 'En vivo' : 'Consultando cada 15 s'} · {ultimaCarga ? hora(ultimaCarga) : '—'} · datos simulados
     </p>
   );
 }

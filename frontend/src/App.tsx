@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError } from './api';
 import { ListaZonas, PanelAlternativas, SelectorPiso } from './components/Disponibilidad';
-import { Asistente } from './components/Asistente';
+import { Asistente, IconoChat } from './components/Asistente';
 import { Billetera } from './components/Billetera';
 import { IconoBilletera, IconoCarro, IconoInicio, IconoMapa } from './components/iconos';
 import { MapaSotano } from './components/MapaSotano';
 import { MiVehiculo } from './components/MiVehiculo';
 import { PanelRetencion } from './components/PanelRetencion';
 import { Tiquete } from './components/Tiquete';
-import { AvisoSimulacion, Encabezado, EstadoDatos, Notificaciones, type Aviso } from './components/ui';
+import { Encabezado, EstadoDatos, Notificaciones, type Aviso } from './components/ui';
 import { useSesion } from './hooks/useSesion';
 import { useTiempoReal } from './hooks/useTiempoReal';
 import type { Alternativa, CambioRetencion, Retencion, Ubicacion, Zona } from './types';
@@ -34,6 +34,7 @@ export default function App() {
   const [ocupado, setOcupado] = useState(false);
   const [conflicto, setConflicto] = useState<{ zona: string; alternativas: Alternativa[] } | null>(null);
   const [pedirNavegacion, setPedirNavegacion] = useState(false);
+  const [chatAbierto, setChatAbierto] = useState(false);
   const retencionRef = useRef<Retencion | null>(null);
   retencionRef.current = retencion;
 
@@ -182,6 +183,15 @@ export default function App() {
     );
   }
 
+  /** v2.1: "Salir" cierra la visita y vuelve a la máquina de ingreso (se ubica al final, en la Billetera). */
+  function salir() {
+    setRetencion(null);
+    setUbicacion(null);
+    setPestana('inicio');
+    setChatAbierto(false);
+    sesion.nuevoIngreso();
+  }
+
   const piso = datos?.pisos.find((p) => p.idPiso === idPiso) ?? datos?.pisos[0];
   const todas = datos?.pisos.flatMap((p) => p.zonas) ?? [];
   const libresTotal = todas.reduce((s, z) => s + z.cupoLogico, 0);
@@ -189,22 +199,12 @@ export default function App() {
 
   return (
     <div className="app">
-      <Encabezado
-        tiquete={sesion.tiquete.token}
-        onSalir={() => {
-          // Vuelve a la máquina de ingreso: se muestra un tiquete nuevo con su código QR.
-          setRetencion(null);
-          setUbicacion(null);
-          setPestana('inicio');
-          sesion.nuevoIngreso();
-        }}
-      />
+      <Encabezado />
       <main className="contenedor">
         <Notificaciones avisos={avisos} onCerrar={(id) => setAvisos((a) => a.filter((x) => x.id !== id))} />
 
         {pestana === 'inicio' && (
           <>
-            <AvisoSimulacion />
             <div className="estadisticas">
               <div className="tarjeta estadistica">
                 <p className="etiqueta">Cupos libres ahora</p>
@@ -217,7 +217,7 @@ export default function App() {
                   {llenas}
                   <span className="estadistica__de">/{todas.length}</span>
                 </p>
-                <p className="texto-suave texto-chico">datos simulados</p>
+                <p className="texto-suave texto-chico">zonas sin cupo</p>
               </div>
             </div>
             {retencion && (
@@ -287,39 +287,48 @@ export default function App() {
           <MiVehiculo
             ingreso={ingreso}
             ubicacion={ubicacion}
-            onIrAlCarro={
-              ubicacion && !retencion
-                ? () => {
-                    setPestana('mapa');
-                    setPedirNavegacion(true);
-                  }
-                : undefined
-            }
+            pisos={datos?.pisos ?? null}
+            intrusosEnCamino={tiempoReal.intrusos}
+            tieneRetencion={!!retencion}
           />
         )}
 
-        {pestana === 'billetera' && <Billetera ahora={ahora} onAviso={avisar} onNuevoIngreso={sesion.nuevoIngreso} />}
+        {pestana === 'billetera' && <Billetera ahora={ahora} tiquete={sesion.tiquete.token} onAviso={avisar} onSalir={salir} />}
       </main>
 
-      {/* El chat flotante no se muestra en el Mapa para no tapar la escena ni los botones */}
-      {pestana !== 'mapa' && <Asistente />}
+      <Asistente abierto={chatAbierto} />
 
-      <nav className="barra-nav" aria-label="Secciones">
-        {PESTANAS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className={`barra-nav__boton ${pestana === p.id ? 'activa' : ''}`}
-            aria-current={pestana === p.id ? 'page' : undefined}
-            aria-label={p.texto}
-            title={p.texto}
-            onClick={() => setPestana(p.id)}
-          >
-            {p.icono}
-            <span className="barra-nav__texto">{p.texto}</span>
-          </button>
-        ))}
-      </nav>
+      {/* v2.1: barra inferior compacta (pastilla) + botón del asistente al lado: nada flota encima del contenido. */}
+      <div className="barra-inferior">
+        <nav className="barra-nav" aria-label="Secciones">
+          {PESTANAS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`barra-nav__boton ${pestana === p.id ? 'activa' : ''}`}
+              aria-current={pestana === p.id ? 'page' : undefined}
+              aria-label={p.texto}
+              title={p.texto}
+              onClick={() => {
+                setPestana(p.id);
+                setChatAbierto(false);
+              }}
+            >
+              {p.icono}
+              <span className="barra-nav__texto">{p.texto}</span>
+            </button>
+          ))}
+        </nav>
+        <button
+          type="button"
+          className={`barra-chat ${chatAbierto ? 'abierto' : ''}`}
+          aria-label={chatAbierto ? 'Cerrar asistente' : 'Abrir asistente de ayuda'}
+          aria-expanded={chatAbierto}
+          onClick={() => setChatAbierto((a) => !a)}
+        >
+          {chatAbierto ? <span aria-hidden="true">✕</span> : <IconoChat />}
+        </button>
+      </div>
     </div>
   );
 }
