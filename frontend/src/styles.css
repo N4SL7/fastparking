@@ -2039,9 +2039,11 @@ body:has(.sim) {
 .escaneo__leido {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-content: center;
-  justify-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   gap: 6px;
   background: rgb(255 255 255 / 0.9);
   color: var(--marca);
@@ -2183,4 +2185,13 @@ body:has(.sim) {
   color: #f5b942;
   font-size: 12px;
   font-weight: 600;
+}
+
+.escaneo__error {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--lleno-fondo);
+  color: var(--lleno);
+  font-size: 0.85rem;
+  line-height: 1.4;
 }

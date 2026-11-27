@@ -22,12 +22,15 @@ export function Tiquete({
   sesionActiva,
   onEscanear,
   onNuevoTiquete,
+  error,
 }: {
   token: string;
   horaIngreso: Date;
   sesionActiva: boolean;
-  onEscanear: () => void;
+  onEscanear: () => Promise<boolean> | void;
   onNuevoTiquete: () => void;
+  /** v2.1: si no se pudo abrir la sesión, el visor vuelve a quedar listo y se explica qué pasó. */
+  error?: string | null;
 }) {
   const url = `${window.location.origin}/?t=${encodeURIComponent(token)}`;
   const { path, tamano } = useMemo(() => qrComoPath(url), [url]);
@@ -42,7 +45,10 @@ export function Tiquete({
     setFase('escaneando');
     temporizadores.current.push(
       window.setTimeout(() => setFase('leido'), DURACION_ESCANEO_MS),
-      window.setTimeout(onEscanear, DURACION_ESCANEO_MS + DURACION_LEIDO_MS),
+      window.setTimeout(async () => {
+        const ok = await onEscanear();
+        if (ok === false) setFase('listo'); // no se pudo abrir: el botón vuelve a estar disponible
+      }, DURACION_ESCANEO_MS + DURACION_LEIDO_MS),
     );
   }
 
@@ -70,7 +76,7 @@ export function Tiquete({
           {fase === 'leido' && (
             <span className="escaneo__leido" role="status">
               <IconoCheck size={34} />
-              Tiquete leído
+              <strong>Tiquete leído</strong>
             </span>
           )}
         </div>
@@ -87,6 +93,11 @@ export function Tiquete({
         </div>
       </dl>
 
+      {error && (
+        <p className="escaneo__error" role="alert">
+          No pudimos abrir tu tiquete: {error}
+        </p>
+      )}
       {!sesionActiva ? (
         <button type="button" className="boton boton--grande" onClick={escanear} disabled={fase !== 'listo'}>
           <IconoTiquete size={20} /> {fase === 'listo' ? 'Simular escaneo del QR' : 'Leyendo tiquete…'}

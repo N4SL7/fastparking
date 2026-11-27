@@ -169,14 +169,10 @@ export default function App() {
               token={sesion.tiquete.token}
               horaIngreso={new Date(sesion.tiquete.ingreso)}
               sesionActiva={false}
-              onEscanear={() => sesion.iniciar(sesion.tiquete.token, sesion.tiquete.ingreso)}
+              onEscanear={() => sesion.iniciar(sesion.tiquete.token, sesion.tiquete.ingreso, true)}
               onNuevoTiquete={sesion.nuevoIngreso}
+              error={sesion.error}
             />
-          )}
-          {sesion.error && (
-            <p className="frescura frescura--alerta" role="alert">
-              No pudimos iniciar tu sesión: {sesion.error}
-            </p>
           )}
         </main>
       </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, fijarSesion } from '../api';
+import { api, ApiError, fijarSesion } from '../api';
 import { nuevoTokenTiquete } from '../components/Tiquete';
 
 const CLAVE_SESION = 'fastparking.idSesion';
@@ -8,6 +8,15 @@ const CLAVE_TIQUETE = 'fastparking.tiquete';
 interface TiqueteGuardado {
   token: string;
   ingreso: string;
+}
+
+// v2.1: un tiquete guardado de una visita anterior ya no sirve (la sesión dura 12 h en el servidor).
+const VIGENCIA_TIQUETE_MS = 10 * 60 * 60 * 1000;
+const tiqueteNuevo = (): TiqueteGuardado => ({ token: nuevoTokenTiquete(), ingreso: new Date().toISOString() });
+function tiqueteInicial(): TiqueteGuardado {
+  const t = leer<TiqueteGuardado>(CLAVE_TIQUETE);
+  if (!t || Date.now() - Date.parse(t.ingreso) > VIGENCIA_TIQUETE_MS) return tiqueteNuevo();
+  return t;
 }
 
 function leer<T>(clave: string): T | null {
@@ -35,12 +44,16 @@ function guardar(clave: string, valor: unknown) {
 export function useSesion() {
   const [idSesion, setIdSesion] = useState<string | null>(null);
   const [tiquete, setTiquete] = useState<TiqueteGuardado>(
-    () => leer<TiqueteGuardado>(CLAVE_TIQUETE) ?? { token: nuevoTokenTiquete(), ingreso: new Date().toISOString() },
+    tiqueteInicial,
   );
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const iniciar = useCallback(async (token: string, ingreso = new Date().toISOString()) => {
+  /**
+   * Abre la sesión del tiquete. Si el tiquete ya expiró y viene de la máquina de ingreso simulada
+   * (renovarSiExpiro), se entrega un tiquete nuevo y se reintenta: el conductor no queda atascado.
+   */
+  const iniciar = useCallback(async (token: string, ingreso = new Date().toISOString(), renovarSiExpiro = false): Promise<boolean> => {
     setError(null);
     try {
       const s = await api.crearSesion(token);
@@ -50,8 +63,25 @@ export function useSesion() {
       fijarSesion(s.idSesion);
       setTiquete(t);
       setIdSesion(s.idSesion);
+      return true;
     } catch (e) {
+      if (renovarSiExpiro && e instanceof ApiError && e.code === 'SESION_EXPIRADA') {
+        const t = tiqueteNuevo();
+        guardar(CLAVE_TIQUETE, t);
+        setTiquete(t);
+        try {
+          const s = await api.crearSesion(t.token);
+          guardar(CLAVE_SESION, s.idSesion);
+          fijarSesion(s.idSesion);
+          setIdSesion(s.idSesion);
+          return true;
+        } catch (e2) {
+          setError((e2 as Error).message);
+          return false;
+        }
+      }
       setError((e as Error).message);
+      return false;
     }
   }, []);
 
@@ -74,8 +104,12 @@ export function useSesion() {
             await api.retencionActual(); // valida que la sesión siga vigente
             setIdSesion(guardada);
           } catch {
+            // La sesión guardada expiró: también su tiquete. Se entrega uno nuevo en la máquina de ingreso.
             fijarSesion(null);
             guardar(CLAVE_SESION, null);
+            const t = tiqueteNuevo();
+            guardar(CLAVE_TIQUETE, t);
+            setTiquete(t);
           }
         }
       }
@@ -87,7 +121,7 @@ export function useSesion() {
   const nuevoIngreso = useCallback(() => {
     guardar(CLAVE_SESION, null);
     fijarSesion(null);
-    const t = { token: nuevoTokenTiquete(), ingreso: new Date().toISOString() };
+    const t = tiqueteNuevo();
     guardar(CLAVE_TIQUETE, t);
     setTiquete(t);
     setIdSesion(null);
